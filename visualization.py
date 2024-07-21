@@ -26,7 +26,7 @@ def create_gif(N,L,extent,Nt,ht,skips):
     fig,axs = plt.subplots(1,2,figsize=(12,5))
     for tdx in range(0,Nt,skips):
         print("\r",tdx,end="",flush=True)
-        fig.suptitle(f"t={10*tdx*ht:.5f}min")
+        fig.suptitle(f"t={tdx*ht:.5f}min")
         #ax0
         im0 = axs[0].imshow(N[tdx,:,:],extent=extent,origin="lower")
         axs[0].set_title(f"Nodal")
@@ -50,7 +50,7 @@ def create_gif(N,L,extent,Nt,ht,skips):
     # Build GIF
     print('\n building .gif file')
     [xstart, xend, ystart, yend] = extent
-    with imageio.get_writer(f'heatmap_{Nt}_{skips}_{xend}_{yend}.mp4', fps=20) as writer:
+    with imageio.get_writer(f'heatmap_neumann_{Nt}_{skips}_{xend}_{yend}.mp4', fps=20) as writer:
         for filename in range(0,Nt,skips):
             image = imageio.v2.imread('plots/heatmap_frame_' + str(filename)+ '.png')
             writer.append_data(image)
