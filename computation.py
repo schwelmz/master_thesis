@@ -30,42 +30,47 @@ def hill_equation(N,L):
     zahler = pow(N,n_N)
     return zahler/nenner
 
-def initialize_random_matrix(rows, cols, init_val=100, percentage=0.01):
-    # Step 1: Create a 2D array filled with zeros
-    array = np.zeros((rows, cols), dtype=int)
-    
-    # Step 2: Calculate the number of ones needed
-    total_elements = rows * cols
-    num_ones = int(total_elements * percentage)
-    
-    # Step 3: Randomly select positions to place the ones
-    ones_positions = np.random.choice(total_elements, num_ones, replace=False)
-    
-    # Step 4: Convert 1D positions to 2D indices and place the ones
-    for pos in ones_positions:
-        row_index = pos // cols
-        col_index = pos % cols
-        array[row_index, col_index] = init_val
-    
-    return array
-
-def initialize_matrix(rows, cols, init_val=1000):
-    array = np.zeros((rows,cols))
-    d_x = cols//4
-    d_y = rows//4
-    array[d_x,d_y] = init_val
-    array[3*d_x,3*d_y] = init_val
-    array[d_x,3*d_y] = init_val
-    array[3*d_x,d_y] = init_val
-    return array
-
+def initialize_matrix(rows, cols, option="white-noise"):
+    init_val = 100
+    percentage = 0.01
+    if option == "4dots":
+        array = np.zeros((rows,cols))
+        d_x = cols//4
+        d_y = rows//4
+        array[d_x,d_y] = init_val
+        array[3*d_x,3*d_y] = init_val
+        array[d_x,3*d_y] = init_val
+        array[3*d_x,d_y] = init_val
+        return array
+    elif option == "random-dots":
+        # Step 1: Create a 2D array filled with zeros
+        array = np.zeros((rows, cols), dtype=int)
+        # Step 2: Calculate the number of ones needed
+        total_elements = rows * cols
+        num_ones = int(total_elements * percentage)
+        # Step 3: Randomly select positions to place the ones
+        ones_positions = np.random.choice(total_elements, num_ones, replace=False)
+        # Step 4: Convert 1D positions to 2D indices and place the ones
+        for pos in ones_positions:
+            row_index = pos // cols
+            col_index = pos % cols
+            array[row_index, col_index] = init_val
+        return array
+    elif option == "white-noise":
+        # Generate a 2D array with white noise using a normal distribution
+        low = 0.0
+        high = 100.0
+        return np.random.uniform(low, high, (rows, cols))
 
 #initial condition
-N_init = initialize_matrix(Nx,Ny)
-L_init = initialize_matrix(Nx,Ny)
+N_init = initialize_matrix(Nx,Ny, option="white-noise")
+L_init = initialize_matrix(Nx,Ny, option="white-noise")
 # m = Nx//2
 # N[0,m,m] = 1
 # L[0,m,m] = 1
+plt.imshow(N_init)
+plt.colorbar()
+plt.show()
 
 fig, axs = plt.subplots(1,2,figsize=(12,5))
 #main loop
@@ -125,5 +130,5 @@ vis.heatmap(fig,axs,N_new,L_new,-1,[xstart,xend,ystart,yend],ht)
 plt.show()
 
 #save data
-np.save(f"out/neumann/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",N_array)
-np.save(f"out/neumann/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",L_array)
+np.save(f"out/whitenoise/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",N_array)
+np.save(f"out/whitenoise/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",L_array)

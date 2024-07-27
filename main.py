@@ -17,14 +17,16 @@ hy = 1.3e-1
 extent = [xstart,xend,ystart,yend]
 
 #import data
-N = np.load(f"out/neumann/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy")
-L = np.load(f"out/neumann/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy")
+N = np.load(f"out/neumann/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}_{n_N}_{n_L}.npy")
+L = np.load(f"out/neumann/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}_{n_N}_{n_L}.npy")
+# N = np.load(f"out/neumann/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy")
+# L = np.load(f"out/neumann/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy")
 
 #plot last state
-# fig, axs = plt.subplots(1,2,figsize=(12,5))
-# vis.heatmap(fig,axs, N[20000,:,:], L[20000,:,:], 20000, extent,ht)
-# plt.show()
+fig, axs = plt.subplots(1,2,figsize=(12,5))
+vis.heatmap(fig,axs, N[20000,:,:], L[20000,:,:], 20000, extent,ht)
+plt.show()
 
 # create gif
-Nt = N.shape[0]
-vis.create_gif(N,L,extent,Nt,ht,100)
+# Nt = N.shape[0]
+# vis.create_gif(N,L,extent,Nt,ht,100)
