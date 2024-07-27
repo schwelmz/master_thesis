@@ -4,7 +4,7 @@ import settings
 import visualization as vis
 
 # read parameters
-alpha_N, alpha_L, k_p, n_N, n_L, K_N, K_L, gamma_N, gamma_L, D_N, D_L = settings.read_parameters()
+alpha_N, alpha_L, k_p, n_N, n_L, K_N, K_L, gamma_N, gamma_L, D_N, D_L, videomode, outdir = settings.read_parameters()
 xstart = 0
 xend = 10
 ystart = 0

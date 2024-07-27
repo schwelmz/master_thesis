@@ -1,25 +1,32 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import imageio
+import matplotlib.colors as clr
+
+# Define the colors
+black_orange = ["black", "salmon"]  # RGB values for black and orange
+black_blue = ["black", "cornflowerblue"]  # RGB values for black and blue
+# Create the colormap
+cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
+cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
 
 def heatmap(fig,axs,N,L,timestep,extent,ht):
     n = timestep
-    fig.suptitle(f"t={n*ht:.5f}min")
+    fig.suptitle(f"t = {n*ht//60:.0f}hrs {n*ht%60:.2f}min")
     #ax0
-    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower")
+    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",vmin=0,cmap=cm_bo)
     axs[0].set_title(f"Nodal")
     axs[0].set_xlabel(r"domain width [$\mu m$]")
     axs[0].set_ylabel(r"domain height [$\mu m$]")
     cb0 = fig.colorbar(im0, ax=axs[0])
-    cb0.set_label("Nodal [nM]")
+    cb0.set_label(r"Nodal [$nM/\mu m$]")
     #ax1
-    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower")
+    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",vmin=0,cmap=cm_bb)
     axs[1].set_title(f"Lefty")
     axs[1].set_xlabel(r"domain width [$\mu m$]")
     axs[1].set_ylabel(r"domain height [$\mu m$]")
     cb1 = fig.colorbar(im1, ax=axs[1])
-    cb1.set_label("Lefty [nM]")
-    return cb0, cb1
+    cb1.set_label(r"Lefty [nM/\mu m]")
 
 
 def create_gif(N,L,extent,Nt,ht,skips):
