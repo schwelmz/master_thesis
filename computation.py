@@ -17,13 +17,13 @@ outdir = args.outdir
 
 #Define the spatial and temporal grid
 xstart = 0
-xend = 10000
+xend = 1000
 ystart = 0
-yend = 10000
+yend = 1000
 tstart = 0
 tend = 60*100
-Nx = 250
-Ny = 250
+Nx = 100
+Ny = 100
 Nt = int(5e4)
 hx = (xend-xstart)/(Nx-1)
 hy = (xend-xstart)/(Ny-1)
@@ -93,7 +93,7 @@ def initialize_matrix(rows, cols, option="white-noise"):
 
 #option to continue simulation on old data, otherwise set initial conditino as "4dots", "random-dots" or "white-noise"
 if args.input is None:
-    init_mat = initialize_matrix(Nx,Ny, option="4dots")
+    init_mat = initialize_matrix(Nx,Ny, option=args.initialization)     #specify initial condition here
     N_init = init_mat 
     L_init = init_mat
 else:

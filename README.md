@@ -18,15 +18,19 @@ The following python packages need to be installed:
 ```bash
 python3 computation.py -p parameter.ini
 ```
+- spezifiziere initial condition ("4dots", "randmon-dots" oder "white-noise"), default ist white-noise
+```bash
+python3 computation.py -p parameter.ini -init white-noise
+```
 - spezifiziere output Ordner, in dem die Ergebnisse gespeichert werden (default = simulation_results). Ergebnisse werden dann in "out/<dir_name>/" gespeichert.
  ```bash
-python3 computation.py -p parameter.ini -o my_output_folder
+python3 computation.py -p parameter.ini -init white-noise -o my_output_folder
 ```
 - aktiviere Zwischenspeichern und automatisches Erzeugen von 250 plots (zum Erstellen von Videos):
 ```bash
-python3 computation.py -p parameter.ini -o my_output_folder --videomode
+python3 computation.py -p parameter.ini -init white-noise -o my_output_folder --videomode
 ```
 - Setze Rechnung von alten Ergebnissen (input files) fort:
 ```bash
-python3 computation.py -p parameter.ini -o my_output_folder -i path/to/Nodal_input.npy path/to/Lefty_input.npy <starting time [min]> --videomode
+python3 computation.py -p parameter.ini -init white-noise -o my_output_folder -i path/to/Nodal_input.npy path/to/Lefty_input.npy <starting time [min]> --videomode
 ```
