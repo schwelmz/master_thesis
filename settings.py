@@ -31,7 +31,7 @@ def read_parameters():
 
 def read_cmdline_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--outdir", help="name of output directory", default="out")
+    parser.add_argument("-o", "--outdir", help="name of output directory", default="simulation_results")
     parser.add_argument("-vid","--videomode", help="more plots in between", action="store_true")
     parser.add_argument("-p", "--parameter", help="parameter file")
     parser.add_argument("-i", "--input", nargs=3, help="path to starting solution")
