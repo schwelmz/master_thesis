@@ -10,9 +10,8 @@ black_blue = ["black", "cornflowerblue"]  # RGB values for black and blue
 cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
 cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
 
-def heatmap(fig,axs,N,L,timestep,extent,ht):
-    n = timestep
-    fig.suptitle(f"t = {n*ht//60:.0f}hrs {n*ht%60:.2f}min")
+def heatmap(fig,axs,N,L,timestep,extent,time):
+    fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
     #ax0
     im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",vmin=0,cmap=cm_bo)
     axs[0].set_title(f"Nodal")
