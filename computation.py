@@ -7,8 +7,21 @@ import os
 import shutil
 
 # read parameters
-alpha_N, alpha_L, k_p, n_N, n_L, K_N, K_L, gamma_N, gamma_L, D_N, D_L= settings.read_parameters()
-settings.print_settings()
+setup = "NodalLefty"
+parameters = settings.read_parameters()
+settings.print_settings(parameters)
+if setup == "NodalLefty":
+    alpha_N = float(parameters['alpha_N'])
+    alpha_L = float(parameters['alpha_L'])
+    k_p = float(parameters['k_p'])
+    n_N = float(parameters['n_N'])
+    n_L = float(parameters['n_L'])
+    K_N = float(parameters['K_N'])
+    K_L = float(parameters['K_L'])
+    gamma_N = float(parameters['gamma_N'])
+    gamma_L = float(parameters['gamma_L'])
+    D_N = float(parameters['D_N'])
+    D_L = float(parameters['D_L'])
 
 #read command line arguments
 args = settings.read_cmdline_args()
@@ -30,7 +43,6 @@ hy = (xend-xstart)/(Ny-1)
 ht = (tend-tstart)/(Nt-1)
 xs = np.linspace(xstart,xend,Nx)
 ys = np.linspace(ystart,yend,Ny)
-
 print(f"hx={hx:.2e}, hy={hy:.2e}, ht={ht:.2e}")
 print(f"Nx={Nx}, Ny={Ny}, Nt={Nt}")
 
@@ -91,14 +103,74 @@ def initialize_matrix(rows, cols, option="white-noise"):
         # return np.random.uniform(low, high, (rows, cols))u-=1
         return np.random.rand(rows,cols)
 
+def NodalLefty_kinetics(alpha, hill_term, gamma, X):
+    return alpha*hill_term - gamma*X
+
+def NodalLefty_step(N_old, L_old):
+    #approximate the Laplacian operator using central differences
+    Lap_N = central_differences(N_old)
+    Lap_L = central_differences(L_old)
+    #calculate the hill equation term
+    hill_term = hill_equation(N_old[1:-1,1:-1],L_old[1:-1,1:-1])
+    #calculate Nodal and Lefty at the new time step using the explicit euler method
+    N_new = N_old[1:-1,1:-1] + ht*(NodalLefty_kinetics(alpha_N,hill_term, gamma_N, N_old[1:-1,1:-1]) + D_N*Lap_N)
+    L_new = L_old[1:-1,1:-1] + ht*(NodalLefty_kinetics(alpha_L,hill_term, gamma_L, L_old[1:-1,1:-1]) + D_L*Lap_L)
+    return N_new, L_new
+
+def solver(model_step):
+    #main loop
+    tik = time.time()
+    A_new = np.zeros((Nx,Ny))
+    B_new = np.zeros((Nx,Ny))
+    A_old = A_init
+    B_old = B_init
+    for n in range(0,Nt-1):
+        print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
+        #update timestep
+        A_new[1:-1,1:-1], B_new[1:-1,1:-1] = model_step(A_old, B_old)
+        #set Neumann boundary values
+        A_new[0,:] = A_new[1,:]     #left
+        B_new[0,:] = B_new[1,:]
+        A_new[:,0] = A_new[:,1]     #bottom
+        B_new[:,0] = B_new[:,1]
+        A_new[-1,:] = A_new[-2,:]   #right
+        B_new[-1,:] = B_new[-2,:]
+        A_new[:,-1] = A_new[:,-2]   #top
+        B_new[:,-1] = B_new[:,-2]
+        #save plots
+        if videomode:
+            if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
+                #save fig
+                fig, axs = plt.subplots(1,2,figsize=(12,5))
+                img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n)
+                fig.savefig(f"out/{outdir}/plots/heatmap_{n}")
+                plt.close()
+                #save data
+                np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
+                np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
+
+        #set new state as old
+        A_old = A_new
+        B_old = B_new
+        
+    #print computation time
+    tok = time.time()
+    print(f"\ndone! time taken: {(tok-tik)/60:.1f}min")
+    
+    return A_new, B_new
+
 #option to continue simulation on old data, otherwise set initial conditino as "4dots", "random-dots" or "white-noise"
 if args.input is None:
-    init_mat = initialize_matrix(Nx,Ny, option=args.initialization)     #specify initial condition here
-    N_init = init_mat 
-    L_init = init_mat
+    if args.initialization is not None: 
+        init = args.initialization
+    else:
+        init = "white-noise"
+    init_mat = initialize_matrix(Nx,Ny, init)     #specify initial condition here
+    A_init = init_mat 
+    B_init = init_mat
 else:
-    N_init = np.load(args.input[0])
-    L_init = np.load(args.input[1])
+    A_init = np.load(args.input[0])
+    B_init = np.load(args.input[1])
     tstart = int(args.input[2]) 
     ht = (tend-tstart)/(Nt-1)
 
@@ -111,51 +183,8 @@ if not os.path.exists(f"out/{outdir}/plots") or os.path.exists(f"out/{outdir}/da
     os.makedirs(f"out/{outdir}/plots")
     os.makedirs(f"out/{outdir}/data")
 
-#main loop
-tik = time.time()
-N_new = np.zeros((Nx,Ny))
-L_new = np.zeros((Nx,Ny))
-N_old = N_init
-L_old = L_init
-for n in range(0,Nt-1):
-    print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
-    #approximate the Laplacian operator using central differences
-    Lap_N = central_differences(N_old)
-    Lap_L = central_differences(L_old)
-    #calculate the hill equation term
-    hill_term = hill_equation(N_old[1:-1,1:-1],L_old[1:-1,1:-1])
-    #calculate Nodal and Lefty at the new time step using the explicit euler method
-    N_new[1:-1,1:-1] = N_old[1:-1,1:-1] + ht*(alpha_N*hill_term - gamma_N*N_old[1:-1,1:-1] + D_N*Lap_N)
-    L_new[1:-1,1:-1] = L_old[1:-1,1:-1] + ht*(alpha_L*hill_term - gamma_L*L_old[1:-1,1:-1] + D_L*Lap_L)
-    #set Neumann boundary values
-    N_new[0,:] = N_new[1,:]     #left
-    L_new[0,:] = L_new[1,:]
-    N_new[:,0] = N_new[:,1]     #bottom
-    L_new[:,0] = L_new[:,1]
-    N_new[-1,:] = N_new[-2,:]   #right
-    L_new[-1,:] = L_new[-2,:]
-    N_new[:,-1] = N_new[:,-2]   #top
-    L_new[:,-1] = L_new[:,-2]
-
-    #save plots
-    if videomode:
-        if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
-            #save fig
-            fig, axs = plt.subplots(1,2,figsize=(12,5))
-            img = vis.heatmap(fig,axs,N_new,L_new,n,[xstart,xend,ystart,yend],tstart+ht*n)
-            fig.savefig(f"out/{outdir}/plots/heatmap_{n}")
-            plt.close()
-            #save data
-            np.save(f"out/{outdir}/data/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",N_new)
-            np.save(f"out/{outdir}/data/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",L_new)
-
-    #set new state as old
-    N_old = N_new
-    L_old = L_new
-    
-#print computation time
-tok = time.time()
-print(f"\ndone! time taken: {(tok-tik)/60:.1f}min")
+#run the simulation
+N_new, L_new = solver(NodalLefty_step)
 
 #save data of last time step
 np.save(f"out/{outdir}/data/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",N_new)
