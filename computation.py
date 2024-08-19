@@ -14,10 +14,10 @@ settings.print_settings(parameters)
 args = settings.read_cmdline_args()
 videomode = args.videomode
 outdir = args.outdir
+setup = args.model
 
 #specify setup
-setup = "GiererMeinhardt"
-if setup == "NodalLefty":
+if setup == "NL":   #Nodal-Lefty
     alpha_N = float(parameters['alpha_N'])
     alpha_L = float(parameters['alpha_L'])
     k_p = float(parameters['k_p'])
@@ -38,23 +38,21 @@ if setup == "NodalLefty":
     Nx = 100
     Ny = 100
     Nt = int(5e4)
-elif setup == "GiererMeinhardt":
+elif setup == "GM":     #Gierer-Meinhardt
     D_u = float(parameters["D_u"])
     D_v = float(parameters["D_v"])
-    rho = float(parameters["rho"])
-    kappa = float(parameters["kappa"])
     mu = float(parameters["mu"])
-    ku = float(parameters["ku"])
-    kv = float(parameters["kv"])
-    sv = float(parameters["sv"])
+    a = float(parameters["a"])
+    c = float(parameters["c"])
+    r = float(parameters["r"])
     xstart = 0
     xend = 100
     ystart = 0
     yend = 100
     tstart = 0
-    tend = 1000
-    Nx = 100
-    Ny = 100
+    tend = 100
+    Nx = 200
+    Ny = 200
     Nt = int(1e4)
 
 #Define the spatial and temporal grid
@@ -123,9 +121,10 @@ def initialize_matrix(rows, cols, option="white-noise"):
         # return np.random.uniform(low, high, (rows, cols))u-=1
         return np.random.rand(rows,cols)
 
-def NodalLefty_kinetics(alpha, hill_term, gamma, X):
-    return alpha*hill_term - gamma*X
-
+'''
+One time step for the Nodal-Lefty model:
+Solve using 2nd order central differences in space and forward Euler in time
+'''
 def NodalLefty_step(N_old, L_old):
     #approximate the Laplacian operator using central differences
     Lap_N = central_differences(N_old)
@@ -133,20 +132,29 @@ def NodalLefty_step(N_old, L_old):
     #calculate the hill equation term
     hill_term = hill_equation(N_old[1:-1,1:-1],L_old[1:-1,1:-1])
     #calculate Nodal and Lefty at the new time step using the explicit euler method
-    N_new = N_old[1:-1,1:-1] + ht*(NodalLefty_kinetics(alpha_N,hill_term, gamma_N, N_old[1:-1,1:-1]) + D_N*Lap_N)
-    L_new = L_old[1:-1,1:-1] + ht*(NodalLefty_kinetics(alpha_L,hill_term, gamma_L, L_old[1:-1,1:-1]) + D_L*Lap_L)
+    N_new = N_old[1:-1,1:-1] + ht*(alpha_N*hill_term - gamma_N*N_old[1:-1,1:-1] + D_N*Lap_N)
+    L_new = L_old[1:-1,1:-1] + ht*(alpha_L*hill_term - gamma_L*L_old[1:-1,1:-1] + D_L*Lap_L)
     return N_new, L_new
 
+'''
+One time step for the Gierer-Meinhardt model:
+Solve using 2nd order central differences in space and forward Euler in time
+'''
 def GiererMeinhardt_step(U_old, V_old):
     #approximate the Laplacian operator using central differences
     Lap_U = central_differences(U_old)
     Lap_V = central_differences(V_old)
     u = U_old[1:-1,1:-1]
     v = V_old[1:-1,1:-1]
-    U_new = u + ht*(rho*(v**2-ku*u) + D_u*Lap_U)
-    V_new = v + ht*(rho*((v**2)/(u*(1+kappa*v**2)) - mu*v) + D_v*Lap_V)
+    f = (u**2)/((1+mu*u**2)*v) - c*u
+    g = u**2 - a*v
+    U_new = u + ht*(r*f + D_u*Lap_U)
+    V_new = v + ht*(r*g + D_v*Lap_V)
     return U_new, V_new
 
+'''
+Solve the PDE for a given model
+'''
 def solver(model_step):
     #main loop
     tik = time.time()
@@ -214,7 +222,10 @@ if not os.path.exists(f"out/{outdir}/plots") or os.path.exists(f"out/{outdir}/da
     os.makedirs(f"out/{outdir}/data")
 
 #run the simulation
-A_new, B_new = solver(GiererMeinhardt_step)
+if setup == "NL":
+    A_new, B_new = solver(NodalLefty_step)
+elif setup == "GM":
+    A_new, B_new = solver(GiererMeinhardt_step)
 
 #save data of last time step
 np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)

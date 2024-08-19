@@ -34,3 +34,7 @@ python3 computation.py -p parameter.ini -init white-noise -o my_output_folder --
 ```bash
 python3 computation.py -p parameter.ini -init white-noise -o my_output_folder -i path/to/Nodal_input.npy path/to/Lefty_input.npy <starting time [min]> --videomode
 ```
+- Wähle anderes Modell (Nodal-Lefty(NL) oder GiererMeinhardt(GM)). Default ist NL.
+ ```bash
+python3 computation.py -p parameter.ini -init white-noise -o my_output_folder -m GM
+```
