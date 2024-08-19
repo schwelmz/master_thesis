@@ -7,9 +7,16 @@ import os
 import shutil
 
 # read parameters
-setup = "NodalLefty"
 parameters = settings.read_parameters()
 settings.print_settings(parameters)
+
+#read command line arguments
+args = settings.read_cmdline_args()
+videomode = args.videomode
+outdir = args.outdir
+
+#specify setup
+setup = "GiererMeinhardt"
 if setup == "NodalLefty":
     alpha_N = float(parameters['alpha_N'])
     alpha_L = float(parameters['alpha_L'])
@@ -22,22 +29,35 @@ if setup == "NodalLefty":
     gamma_L = float(parameters['gamma_L'])
     D_N = float(parameters['D_N'])
     D_L = float(parameters['D_L'])
-
-#read command line arguments
-args = settings.read_cmdline_args()
-videomode = args.videomode
-outdir = args.outdir
+    xstart = 0
+    xend = 1000
+    ystart = 0
+    yend = 1000
+    tstart = 0
+    tend = 60*100
+    Nx = 100
+    Ny = 100
+    Nt = int(5e4)
+elif setup == "GiererMeinhardt":
+    D_u = float(parameters["D_u"])
+    D_v = float(parameters["D_v"])
+    rho = float(parameters["rho"])
+    kappa = float(parameters["kappa"])
+    mu = float(parameters["mu"])
+    ku = float(parameters["ku"])
+    kv = float(parameters["kv"])
+    sv = float(parameters["sv"])
+    xstart = 0
+    xend = 100
+    ystart = 0
+    yend = 100
+    tstart = 0
+    tend = 1000
+    Nx = 100
+    Ny = 100
+    Nt = int(1e4)
 
 #Define the spatial and temporal grid
-xstart = 0
-xend = 1000
-ystart = 0
-yend = 1000
-tstart = 0
-tend = 60*100
-Nx = 100
-Ny = 100
-Nt = int(5e4)
 hx = (xend-xstart)/(Nx-1)
 hy = (xend-xstart)/(Ny-1)
 ht = (tend-tstart)/(Nt-1)
@@ -117,6 +137,16 @@ def NodalLefty_step(N_old, L_old):
     L_new = L_old[1:-1,1:-1] + ht*(NodalLefty_kinetics(alpha_L,hill_term, gamma_L, L_old[1:-1,1:-1]) + D_L*Lap_L)
     return N_new, L_new
 
+def GiererMeinhardt_step(U_old, V_old):
+    #approximate the Laplacian operator using central differences
+    Lap_U = central_differences(U_old)
+    Lap_V = central_differences(V_old)
+    u = U_old[1:-1,1:-1]
+    v = V_old[1:-1,1:-1]
+    U_new = u + ht*(rho*(v**2-ku*u) + D_u*Lap_U)
+    V_new = v + ht*(rho*((v**2)/(u*(1+kappa*v**2)) - mu*v) + D_v*Lap_V)
+    return U_new, V_new
+
 def solver(model_step):
     #main loop
     tik = time.time()
@@ -184,8 +214,8 @@ if not os.path.exists(f"out/{outdir}/plots") or os.path.exists(f"out/{outdir}/da
     os.makedirs(f"out/{outdir}/data")
 
 #run the simulation
-N_new, L_new = solver(NodalLefty_step)
+A_new, B_new = solver(GiererMeinhardt_step)
 
 #save data of last time step
-np.save(f"out/{outdir}/data/Nodal_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",N_new)
-np.save(f"out/{outdir}/data/Lefty_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}_{alpha_N}_{alpha_L}.npy",L_new)
+np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
+np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
