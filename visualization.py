@@ -4,8 +4,10 @@ import imageio
 import matplotlib.colors as clr
 
 # Define the colors
-black_orange = ["black", "salmon"]  # RGB values for black and orange
-black_blue = ["black", "cornflowerblue"]  # RGB values for black and blue
+# black_orange = ["black", "salmon"]  # RGB values for black and orange
+# black_blue = ["black", "cornflowerblue"]  # RGB values for black and blue
+black_orange = ["black", "red"]  # RGB values for black and orange
+black_blue = ["black", "blue"]  # RGB values for black and blue
 # Create the colormap
 cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
 cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
@@ -13,14 +15,14 @@ cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
 def heatmap(fig,axs,N,L,timestep,extent,time):
     fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
     #ax0
-    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",vmin=0,cmap=cm_bo)
+    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo,vmin=0)
     axs[0].set_title(f"Species A")
     axs[0].set_xlabel(r"domain width [$\mu m$]")
     axs[0].set_ylabel(r"domain height [$\mu m$]")
     cb0 = fig.colorbar(im0, ax=axs[0])
     cb0.set_label(r"Nodal [$nM/\mu m$]")
     #ax1
-    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",vmin=0,cmap=cm_bb)
+    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb,vmin=0)
     axs[1].set_title(f"Species B")
     axs[1].set_xlabel(r"domain width [$\mu m$]")
     axs[1].set_ylabel(r"domain height [$\mu m$]")

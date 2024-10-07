@@ -8,7 +8,7 @@ import shutil
 
 # read parameters
 parameters = settings.read_parameters()
-settings.print_settings(parameters)
+# settings.print_settings(parameters)
 
 #read command line arguments
 args = settings.read_cmdline_args()
@@ -20,7 +20,7 @@ setup = args.model
 if setup == "NL":   #Nodal-Lefty
     alpha_N = float(parameters['alpha_N'])
     alpha_L = float(parameters['alpha_L'])
-    k_p = float(parameters['k_p'])
+    # k_p = float(parameters['k_p'])
     n_N = float(parameters['n_N'])
     n_L = float(parameters['n_L'])
     K_N = float(parameters['K_N'])
@@ -30,14 +30,24 @@ if setup == "NL":   #Nodal-Lefty
     D_N = float(parameters['D_N'])
     D_L = float(parameters['D_L'])
     xstart = 0
-    xend = 1000
+    xend = 100
     ystart = 0
-    yend = 1000
+    yend = 100
     tstart = 0
-    tend = 60*100
-    Nx = 100
-    Ny = 100
-    Nt = int(5e4)
+    tend = 200
+    Nx = 101
+    Ny = 101
+    Nt = int(2e5)
+    print("alpha_N=",alpha_N)
+    print("alpha_L=",alpha_L)
+    print("n_N=",n_N)
+    print("n_L=",n_L)
+    print("K_N=",K_N)
+    print("K_L=",K_L)
+    print("gamma_N=",gamma_N)
+    print("gamma_L=",gamma_L)
+    print("D_N=",D_N)
+    print("D_L=",D_L)
 elif setup == "GM":     #Gierer-Meinhardt
     D_u = float(parameters["D_u"])
     D_v = float(parameters["D_v"])
@@ -54,6 +64,36 @@ elif setup == "GM":     #Gierer-Meinhardt
     Nx = 200
     Ny = 200
     Nt = int(1e4)
+elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
+    alpha_N = float(parameters['alpha_N'])
+    alpha_L = float(parameters['alpha_L'])
+    # k_p = float(parameters['k_p'])
+    n_N = float(parameters['n_N'])
+    n_L = float(parameters['n_L'])
+    K_N = float(parameters['K_N'])
+    K_L = float(parameters['K_L'])
+    gamma_N = float(parameters['gamma_N'])
+    gamma_L = float(parameters['gamma_L'])
+    D_N = float(parameters['D_N'])
+    D_L = float(parameters['D_L'])
+    #dimensionless parameters:
+    alpha_N_ = alpha_N/(gamma_N*K_N)
+    alpha_L_ = alpha_L/(gamma_N*K_L)
+    gamma_ = gamma_L/gamma_N
+    d = D_L/D_N
+    print("alpha_N_ = ",alpha_N_)
+    print("alpha_L_ = ",alpha_L_)
+    print("gamma_ = ", gamma_)
+    print("d = ",d)
+    xstart = 0
+    xend = 100
+    ystart = 0
+    yend = 100
+    tstart = 0
+    tend = 200
+    Nx = 101
+    Ny = 101
+    Nt = int(1e5)
 
 #Define the spatial and temporal grid
 hx = (xend-xstart)/(Nx-1)
@@ -79,6 +119,11 @@ Output: approximation of the Laplace operator in each inner entry of the matrix 
 '''
 def central_differences(U):
     return (U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])/(hx**2)
+
+# def laplacian_2d(arr, dx, dy):
+#     laplacian_x = (np.roll(arr, 1, axis=0) - 2 * arr + np.roll(arr, -1, axis=0)) / dx**2
+#     laplacian_y = (np.roll(arr, 1, axis=1) - 2 * arr + np.roll(arr, -1, axis=1)) / dy**2
+#     return laplacian_x + laplacian_y
  
 '''
 Create matrix containing the initial values
@@ -117,8 +162,8 @@ def initialize_matrix(rows, cols, option="white-noise"):
     elif option == "white-noise":
         # Generate a 2D array with white noise using a normal distribution
         # low = 0.0
-        # high = 1.0
-        # return np.random.uniform(low, high, (rows, cols))u-=1
+        # high = 0.01
+        # return np.random.uniform(low, high, (rows, cols))
         return np.random.rand(rows,cols)
 
 '''
@@ -129,12 +174,32 @@ def NodalLefty_step(N_old, L_old):
     #approximate the Laplacian operator using central differences
     Lap_N = central_differences(N_old)
     Lap_L = central_differences(L_old)
+    # Lap_N = laplacian_2d(N_old,hx,hy)
+    # Lap_L = laplacian_2d(L_old,hx,hy)
     #calculate the hill equation term
     hill_term = hill_equation(N_old[1:-1,1:-1],L_old[1:-1,1:-1])
+    # hill_term = hill_equation(N_old,L_old)
     #calculate Nodal and Lefty at the new time step using the explicit euler method
     N_new = N_old[1:-1,1:-1] + ht*(alpha_N*hill_term - gamma_N*N_old[1:-1,1:-1] + D_N*Lap_N)
     L_new = L_old[1:-1,1:-1] + ht*(alpha_L*hill_term - gamma_L*L_old[1:-1,1:-1] + D_L*Lap_L)
+    # N_new = N_old + ht*(alpha_N*hill_term - gamma_N*N_old + D_N*Lap_N)
+    # L_new = L_old + ht*(alpha_L*hill_term - gamma_L*L_old + D_L*Lap_L)
     return N_new, L_new
+
+def NodalLefty_dimless_step(U_old, V_old):
+    #approximate the Laplacian operator using central differences
+    Lap_u = central_differences(U_old)
+    Lap_v = central_differences(V_old)
+    #calculate the hill equation term
+    u_old = U_old[1:-1,1:-1]
+    v_old = V_old[1:-1,1:-1]
+    hill_term = pow(u_old,n_N)/(pow(u_old,n_N) + pow((1+pow(v_old,n_L)),n_N))
+    #calculate Nodal and Lefty at the new time step using the explicit euler method
+    u_new = u_old + ht*(alpha_N_ * hill_term - u_old + Lap_u)
+    v_new = v_old + ht*(alpha_L_ * hill_term - gamma_*v_old + d*Lap_v)
+    # u_new = u_old + ht*(Lap_u)
+    # v_new = v_old + ht*(d*Lap_v)
+    return u_new, v_new
 
 '''
 One time step for the Gierer-Meinhardt model:
@@ -166,6 +231,7 @@ def solver(model_step):
         print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
         #update timestep
         A_new[1:-1,1:-1], B_new[1:-1,1:-1] = model_step(A_old, B_old)
+        # A_new, B_new = model_step(A_old, B_old)
         #set Neumann boundary values
         A_new[0,:] = A_new[1,:]     #left
         B_new[0,:] = B_new[1,:]
@@ -217,7 +283,12 @@ frames = 250
 frameskips = Nt//frames
 
 #create output directory
-if not os.path.exists(f"out/{outdir}/plots") or os.path.exists(f"out/{outdir}/data"):
+if not os.path.exists(f"out/{outdir}"):
+    os.makedirs(f"out/{outdir}/plots")
+    os.makedirs(f"out/{outdir}/data")
+else: 
+    shutil.rmtree(f"out/{outdir}")
+    print(f"old output directory '{outdir}' deleted")
     os.makedirs(f"out/{outdir}/plots")
     os.makedirs(f"out/{outdir}/data")
 
@@ -226,6 +297,8 @@ if setup == "NL":
     A_new, B_new = solver(NodalLefty_step)
 elif setup == "GM":
     A_new, B_new = solver(GiererMeinhardt_step)
+elif setup == "NL_dimless":
+    A_new, B_new = solver(NodalLefty_dimless_step)
 
 #save data of last time step
 np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)

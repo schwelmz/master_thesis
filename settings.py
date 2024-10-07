@@ -25,7 +25,7 @@ def read_cmdline_args():
     parser.add_argument("-vid","--videomode", help="more plots in between", action="store_true")
     parser.add_argument("-p", "--parameter", help="parameter file")
     parser.add_argument("-i", "--input", nargs=3, help="path to starting solution")
-    parser.add_argument("-m", "--model", help="specify model", default="NL", choices=["NL","GM"])
+    parser.add_argument("-m", "--model", help="specify model", default="NL", choices=["NL","NL_dimless","GM"])
     args = parser.parse_args()
     return args
 
