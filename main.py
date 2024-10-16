@@ -85,21 +85,45 @@ import visualization as vis
 # create gif
 # Nt = N.shape[0]
 # vis.create_gif(N,L,extent,Nt,ht,100)
-alpha_N = 181.82
-alpha_L = 112.82
-gamma = 2.384
-n_N = 2.63
-n_L = 1.09
-nullcline_f_2 = lambda u: ((alpha_N*u**(n_N-1) - u**n_N)**(1/n_N) - 1)**(1/n_L)
-nullcline_g_2 = lambda v: ((gamma*v)/(alpha_L-gamma*v))**(1/n_N)*(1+v**n_L)
 
-us = np.linspace(0,0.1,1000)
-vs = np.linspace(0,0.1,1000)
-print(nullcline_f_2(0.1))
+parameters = settings.read_parameters()
+settings.print_settings(parameters)
+alpha_N = float(parameters['alpha_N'])
+alpha_L = float(parameters['alpha_L'])
+n_N = float(parameters['n_N'])
+n_L = float(parameters['n_L'])
+K_N = float(parameters['K_N'])
+K_L = float(parameters['K_L'])
+gamma_N = float(parameters['gamma_N'])
+gamma_L = float(parameters['gamma_L'])
+D_N = float(parameters['D_N'])
+D_L = float(parameters['D_L'])
+
+# alpha_N = 181.82
+# alpha_L = 112.82
+# gamma = 2.384
+# n_N = 2.63
+# n_L = 1.09
+
+#dimensionless parameters:
+alpha_N_ = alpha_N/(gamma_N*K_N)
+alpha_L_ = alpha_L/(gamma_N*K_L)
+gamma_ = gamma_L/gamma_N
+d = D_L/D_N
+print("alpha_N_ = ",alpha_N_)
+print("alpha_L_ = ",alpha_L_)
+print("gamma_ = ", gamma_)
+print("d = ",d)
+
+nullcline_f_2 = lambda u: ((alpha_N_*u**(n_N-1) - u**n_N)**(1/n_N) - 1)**(1/n_L)
+nullcline_g_2 = lambda v: ((gamma_*v)/(alpha_L_-gamma_*v))**(1/n_N)*(1+v**n_L)
+
+us = np.linspace(0,1,10000)
+vs = np.linspace(0,1,10000)
 plt.plot(us,nullcline_f_2(us),label="f(u,v)=0")
 plt.plot(nullcline_g_2(vs),vs,label="g(u,v)=0")
 plt.xlabel("u")
 plt.ylabel("v")
-plt.ylim(0,0.1)
+# plt.ylim(0,0.1)
 plt.legend()
 plt.show()

@@ -8,7 +8,8 @@ import shutil
 
 # read parameters
 parameters = settings.read_parameters()
-# settings.print_settings(parameters)
+settings.print_settings(parameters)
+np.random.seed(0)
 
 #read command line arguments
 args = settings.read_cmdline_args()
@@ -17,6 +18,7 @@ outdir = args.outdir
 setup = args.model
 
 #specify setup
+dimless = False
 if setup == "NL":   #Nodal-Lefty
     alpha_N = float(parameters['alpha_N'])
     alpha_L = float(parameters['alpha_L'])
@@ -30,24 +32,14 @@ if setup == "NL":   #Nodal-Lefty
     D_N = float(parameters['D_N'])
     D_L = float(parameters['D_L'])
     xstart = 0
-    xend = 100
+    xend = 100*np.sqrt(D_N/gamma_N)
     ystart = 0
-    yend = 100
+    yend = 100*np.sqrt(D_N/gamma_N)
     tstart = 0
-    tend = 200
+    tend = 100/gamma_N
     Nx = 101
     Ny = 101
-    Nt = int(2e5)
-    print("alpha_N=",alpha_N)
-    print("alpha_L=",alpha_L)
-    print("n_N=",n_N)
-    print("n_L=",n_L)
-    print("K_N=",K_N)
-    print("K_L=",K_L)
-    print("gamma_N=",gamma_N)
-    print("gamma_L=",gamma_L)
-    print("D_N=",D_N)
-    print("D_L=",D_L)
+    Nt = int(1e5)
 elif setup == "GM":     #Gierer-Meinhardt
     D_u = float(parameters["D_u"])
     D_v = float(parameters["D_v"])
@@ -90,10 +82,11 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     ystart = 0
     yend = 100
     tstart = 0
-    tend = 200
+    tend = 100
     Nx = 101
     Ny = 101
     Nt = int(1e5)
+    dimless=True
 
 #Define the spatial and temporal grid
 hx = (xend-xstart)/(Nx-1)
@@ -246,7 +239,7 @@ def solver(model_step):
             if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
                 #save fig
                 fig, axs = plt.subplots(1,2,figsize=(12,5))
-                img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n)
+                img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n, dimless=dimless)
                 fig.savefig(f"out/{outdir}/plots/heatmap_{n}")
                 plt.close()
                 #save data
