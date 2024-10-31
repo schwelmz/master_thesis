@@ -5,6 +5,7 @@ import time
 import visualization as vis
 import os
 import shutil
+import scipy.sparse as sparse
 
 # read parameters
 parameters = settings.read_parameters()
@@ -36,7 +37,7 @@ if setup == "NL":   #Nodal-Lefty
     tstart = 0
     tend = 100/gamma_N
     Nx = 101
-    Nt = int(1e5)
+    Nt = int(1e4)
 elif setup == "GM":     #Gierer-Meinhardt
     D_u = float(parameters["D_u"])
     D_v = float(parameters["D_v"])
@@ -78,6 +79,19 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     Nx = 101
     Nt = int(1e5)
     dimless=True
+
+#auxiliary 
+def make_system_matrix(N, kappa, bounds=None):
+    diags = [-kappa*np.ones(N-1),(1+2*kappa)*np.ones(N), -kappa*np.ones(N-1)]
+    mat = sparse.diags(diags,[-1,0,1],format="csr")
+    if bounds == "neumann":
+        # mat[0,1] = mat[0,0]
+        # mat[-1,-2] = mat[-1,-1]
+        mat[0, 0] = 1 + kappa     # Neumann boundary condition at left boundary
+        mat[0, 1] = -kappa
+        mat[-1, -1] = 1 + kappa   # Neumann boundary condition at right boundary
+        mat[-1, -2] = -kappa
+    return mat
 
 #Define the spatial and temporal grid
 hx = (xend-xstart)/(Nx-1)
@@ -154,19 +168,39 @@ One time step for the Nodal-Lefty model:
 Solve using 2nd order central differences in space and forward Euler in time
 '''
 def NodalLefty_step(N_old, L_old):
+    N_new = np.zeros(Nx)
+    L_new = np.zeros(Nx)
     #approximate the Laplacian operator using central differences
     Lap_N = central_differences(N_old)
     Lap_L = central_differences(L_old)
-    # Lap_N = laplacian_2d(N_old,hx,hy)
-    # Lap_L = laplacian_2d(L_old,hx,hy)
     #calculate the hill equation term
     hill_term = hill_equation(N_old[1:-1],L_old[1:-1])
-    # hill_term = hill_equation(N_old,L_old)
     #calculate Nodal and Lefty at the new time step using the explicit euler method
-    N_new = N_old[1:-1] + ht*(alpha_N*hill_term - gamma_N*N_old[1:-1] + D_N*Lap_N)
-    L_new = L_old[1:-1] + ht*(alpha_L*hill_term - gamma_L*L_old[1:-1] + D_L*Lap_L)
-    # N_new = N_old + ht*(alpha_N*hill_term - gamma_N*N_old + D_N*Lap_N)
-    # L_new = L_old + ht*(alpha_L*hill_term - gamma_L*L_old + D_L*Lap_L)
+    N_new[1:-1] = N_old[1:-1] + ht*(alpha_N*hill_term - gamma_N*N_old[1:-1] + D_N*Lap_N)
+    L_new[1:-1] = L_old[1:-1] + ht*(alpha_L*hill_term - gamma_L*L_old[1:-1] + D_L*Lap_L)
+    # set Neumann boundary values
+    N_new[0] = N_new[1]     #left
+    L_new[0] = L_new[1]
+    N_new[-1] = N_new[-2]   #right
+    L_new[-1] = L_new[-2]
+    return N_new, L_new
+
+def NodalLefty_splitting_step(N_old, L_old):
+    #EE for half a time step for reaction part
+    hill_term = hill_equation(N_old,L_old)
+    N_half = N_old + ht/2*(alpha_N*hill_term - gamma_N*N_old)
+    L_half = L_old + ht/2*(alpha_L*hill_term - gamma_L*L_old)
+    #IE for one time step for diffusion part
+    N_diffused = sparse.linalg.gmres(sysmat_N, N_half)
+    L_diffused = sparse.linalg.gmres(sysmat_L, L_half)
+    if N_diffused[1] == 0 and L_diffused[1]==0:     
+        N_diffused = N_diffused[0]
+        L_diffused = L_diffused[0]
+    else:
+        print("GMRES did not converge!")
+    #EE for half a time step for reaction part
+    N_new = N_diffused + ht/2*(alpha_N*hill_term - gamma_N*N_diffused)
+    L_new = L_diffused + ht/2*(alpha_L*hill_term - gamma_L*L_diffused)
     return N_new, L_new
 
 def NodalLefty_dimless_step(U_old, V_old):
@@ -213,21 +247,17 @@ def solver(model_step):
     for n in range(0,Nt-1):
         print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
         #update timestep
-        A_new[1:-1], B_new[1:-1] = model_step(A_old, B_old)
-        # A_new, B_new = model_step(A_old, B_old)
-        #set Neumann boundary values
-        A_new[0] = A_new[1]     #left
-        B_new[0] = B_new[1]
-        A_new[-1] = A_new[-2]   #right
-        B_new[-1] = B_new[-2]
+        A_new, B_new = model_step(A_old, B_old)
         #save plots
         if videomode:
             if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
                 #save fig
-                fig, axs = plt.subplots(1,2,figsize=(12,5))
+                fig, axs = plt.subplots(1,1,figsize=(12,5))
                 # img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n, dimless=dimless)
-                axs[0].plot(xs,A_new)
-                axs[1].plot(xs,B_new)
+                axs.plot(xs,A_new,color="red",label="Nodal")
+                axs.plot(xs,B_new,color="blue",label="Lefty")
+                axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
+                axs.legend()
                 fig.savefig(f"out/{outdir}/plots/lineplot_{n}")
                 plt.close()
                 #save data
@@ -273,9 +303,18 @@ else:
     os.makedirs(f"out/{outdir}/plots")
     os.makedirs(f"out/{outdir}/data")
 
+#create system matrix
+kappa_N = D_N*ht/(hx**2)
+kappa_L = D_L*ht/(hx**2)
+sysmat_N = make_system_matrix(Nx, kappa_N, bounds="neumann")
+sysmat_L = make_system_matrix(Nx, kappa_L, bounds="neumann")
+print(sysmat_N.todense())
+print(sysmat_L.todense())
+
 #run the simulation
 if setup == "NL":
-    A_new, B_new = solver(NodalLefty_step)
+    # A_new, B_new = solver(NodalLefty_step)
+    A_new, B_new = solver(NodalLefty_splitting_step)
 elif setup == "GM":
     A_new, B_new = solver(GiererMeinhardt_step)
 elif setup == "NL_dimless":
@@ -323,5 +362,13 @@ else:
 # plt.show()
 
 #save data of last time step
+#save fig
+fig, axs = plt.subplots(1,1,figsize=(12,5))
+# img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n, dimless=dimless)
+axs.plot(xs,A_new,color="red",label="Nodal")
+axs.plot(xs,B_new,color="blue",label="Lefty")
+axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
+axs.legend()
+fig.savefig(f"out/{outdir}/plots/lineplot_end")
 np.save(f"out/{outdir}/data/A_{ht}_{hx}_{tend}_{xend}.npy",A_new)
 np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
