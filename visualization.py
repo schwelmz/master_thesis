@@ -12,14 +12,16 @@ black_blue = ["black", "blue"]  # RGB values for black and blue
 # Create the colormap
 cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
 cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
+# cm_bo = "seismic"
+# cm_bb = "BrBG"
 
 def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False):
     #ax0
-    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo)
+    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo, vmin=0)
     axs[0].set_title(f"Species A")
     cb0 = fig.colorbar(im0, ax=axs[0])
     #ax1
-    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb)
+    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb, vmin=0)
     axs[1].set_title(f"Species B")
     cb1 = fig.colorbar(im1, ax=axs[1])
 
@@ -33,12 +35,12 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False):
         cb1.set_label(r"$v = \frac{L}{K_L}$")
     else:
         fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
-    axs[0].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
-    axs[0].set_ylabel(r"domain height [$\mu m$]")
-    axs[1].set_xlabel(r"domain width [$\mu m$]")
-    axs[1].set_ylabel(r"domain height [$\mu m$]")
-    cb0.set_label(r"Nodal [$nM/\mu m$]")
-    cb1.set_label(r"Lefty [nM/\mu m]")
+        axs[0].set_xlabel(r"domain width [$\mu m$]")
+        axs[0].set_ylabel(r"domain height [$\mu m$]")
+        axs[1].set_xlabel(r"domain width [$\mu m$]")
+        axs[1].set_ylabel(r"domain height [$\mu m$]")
+        cb0.set_label(r"Nodal [$nM/\mu m$]")
+        cb1.set_label(r"Lefty [nM/\mu m]")
 
     plt.subplots_adjust(left=0.1,right=0.95)
 
