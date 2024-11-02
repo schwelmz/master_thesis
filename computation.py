@@ -6,6 +6,7 @@ import visualization as vis
 import os
 import shutil
 import scipy.sparse as sparse
+from functools import lru_cache
 
 # read parameters
 parameters = settings.read_parameters()
@@ -17,6 +18,7 @@ args = settings.read_cmdline_args()
 videomode = args.videomode
 outdir = args.outdir
 setup = args.model
+time_disc = args.timedisc
 
 #specify setup
 dimless = False
@@ -77,13 +79,14 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     tstart = 0
     tend = 100
     Nx = 101
-    Nt = int(1e5)
+    Nt = int(1e4)
     dimless=True
 
 #auxiliary 
+@lru_cache(maxsize=8)
 def make_system_matrix(N, kappa, bounds=None):
     diags = [-kappa*np.ones(N-1),(1+2*kappa)*np.ones(N), -kappa*np.ones(N-1)]
-    mat = sparse.diags(diags,[-1,0,1],format="csr")
+    mat = sparse.diags(diags,[-1,0,1],format="lil")
     if bounds == "neumann":
         # mat[0,1] = mat[0,0]
         # mat[-1,-2] = mat[-1,-1]
@@ -91,14 +94,8 @@ def make_system_matrix(N, kappa, bounds=None):
         mat[0, 1] = -kappa
         mat[-1, -1] = 1 + kappa   # Neumann boundary condition at right boundary
         mat[-1, -2] = -kappa
-    return mat
+    return sparse.csr_matrix(mat)
 
-#Define the spatial and temporal grid
-hx = (xend-xstart)/(Nx-1)
-ht = (tend-tstart)/(Nt-1)
-xs = np.linspace(xstart,xend,Nx)
-print(f"hx={hx:.2e}, ht={ht:.2e}")
-print(f"Nx={Nx}, Nt={Nt}")
 
 '''
 return the values of the hill equation as it is in the PDE for different concentrations of Nodal and Lefty
@@ -218,6 +215,24 @@ def NodalLefty_dimless_step(U_old, V_old):
     # v_new = v_old + ht*(d*Lap_v)
     return u_new, v_new
 
+def NodalLefty_dimless_splitting_step(N_old, L_old):
+    #EE for half a time step for reaction part
+    hill_term = pow(N_old,n_N)/(pow(N_old,n_N) + pow((1+pow(L_old,n_L)),n_N))
+    N_half = N_old + ht/2*(alpha_N_*hill_term - N_old)
+    L_half = L_old + ht/2*(alpha_L_*hill_term - gamma_*L_old)
+    #IE for one time step for diffusion part
+    N_diffused = sparse.linalg.gmres(sysmat_N, N_half)
+    L_diffused = sparse.linalg.gmres(sysmat_L, L_half)
+    if N_diffused[1] == 0 and L_diffused[1]==0:     
+        N_diffused = N_diffused[0]
+        L_diffused = L_diffused[0]
+    else:
+        print("GMRES did not converge!")
+    #EE for half a time step for reaction part
+    N_new = N_diffused + ht/2*(alpha_N_*hill_term - N_diffused)
+    L_new = L_diffused + ht/2*(alpha_L_*hill_term - gamma_*L_diffused)
+    return N_new, L_new
+
 '''
 One time step for the Gierer-Meinhardt model:
 Solve using 2nd order central differences in space and forward Euler in time
@@ -234,20 +249,67 @@ def GiererMeinhardt_step(U_old, V_old):
     V_new = v + ht*(r*g + D_v*Lap_V)
     return U_new, V_new
 
+def reaction_NL(N,L):
+    hill_term = hill_equation(N,L)
+    reaction_N = alpha_N*hill_term - gamma_N*N
+    reaction_L = alpha_L*hill_term - gamma_L*L
+    return reaction_N, reaction_L
+
+def explicit_euler(u_old, rhs, ht):
+    return u_old + ht*rhs
+
+def EE_CD_step(A, B):
+    A_new = np.zeros(Nx)
+    B_new = np.zeros(Nx)
+    Lap_A = central_differences(A)
+    Lap_B = central_differences(B)
+    f_A, f_B = reaction_NL(A[1:-1],B[1:-1])
+    A_new[1:-1] = explicit_euler(A[1:-1], f_A + D_N*Lap_A, ht)
+    B_new[1:-1] = explicit_euler(B[1:-1], f_B + D_L*Lap_B, ht)
+    # set Neumann boundary values
+    A_new[0] = A_new[1]     #left
+    B_new[0] = B_new[1]
+    A_new[-1] = A_new[-2]   #right
+    B_new[-1] = B_new[-2]
+    return A_new, B_new
+
+def implicit_euler(u, system_matrix):
+    assert isinstance(system_matrix, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
+    u_new = sparse.linalg.spsolve(system_matrix, u)
+    return u_new
+
+def make_strang_step(int0,int1,system_matrices, reaction):
+    def strang_step(u, v):
+        rhsA, rhsB = reaction(u,v)
+        # solve the first equation for the first half time interval
+        u = int0(u, rhsA, ht/2)
+        v = int0(v, rhsB, ht/2)
+        # solve the second equation for one time interval
+        sysmat_N, sysmat_L = system_matrices
+        u = int1(u, sysmat_N)
+        v = int1(v, sysmat_L)
+        # solve the first equation for the second half time interval
+        u = int0(u, rhsA, ht/2)
+        v = int0(v, rhsB, ht/2)
+        return u,v
+    return strang_step
+
 '''
 Solve the PDE for a given model
 '''
-def solver(model_step):
+def stepper(integrator, A0, B0):
     #main loop
     tik = time.time()
     A_new = np.zeros(Nx)
     B_new = np.zeros(Nx)
-    A_old = A_init
-    B_old = B_init
+    A_old = A0
+    B_old = B0
     for n in range(0,Nt-1):
         print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
         #update timestep
-        A_new, B_new = model_step(A_old, B_old)
+        # A_new, B_new = model_step(A_old, B_old)
+        # A_new, B_new = strang_splitting(A_old, B_old, explicit_euler_step, implicit_euler_step, reaction_NL(A_new,B_new))
+        A_new, B_new = integrator(A_old, B_old)
         #save plots
         if videomode:
             if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
@@ -270,9 +332,20 @@ def solver(model_step):
         
     #print computation time
     tok = time.time()
-    print(f"\ndone! time taken: {(tok-tik)/60:.1f}min")
+    print(f"\ndone! time taken: {(tok-tik)/60:.1f}min {(tok-tik):.1f}s")
     
     return A_new, B_new
+
+def strang_EE_IE(u0,v0):
+    kappa_N = D_N*ht/(hx**2)
+    kappa_L = D_L*ht/(hx**2)
+    sysmat_N = make_system_matrix(Nx, kappa_N, bounds = "neumann")
+    sysmat_L = make_system_matrix(Nx, kappa_L, bounds = "neumann")
+    system_matrices = [sysmat_N, sysmat_L]
+    return stepper(make_strang_step(explicit_euler, implicit_euler, system_matrices, reaction_NL), u0, v0)
+
+def EE_CD(u0,v0):
+    return stepper(EE_CD_step, u0, v0)
 
 #option to continue simulation on old data, otherwise set initial conditino as "4dots", "random-dots" or "white-noise"
 if args.input is None:
@@ -303,38 +376,53 @@ else:
     os.makedirs(f"out/{outdir}/plots")
     os.makedirs(f"out/{outdir}/data")
 
-#create system matrix
-kappa_N = D_N*ht/(hx**2)
-kappa_L = D_L*ht/(hx**2)
-sysmat_N = make_system_matrix(Nx, kappa_N, bounds="neumann")
-sysmat_L = make_system_matrix(Nx, kappa_L, bounds="neumann")
-print(sysmat_N.todense())
-print(sysmat_L.todense())
+
+#Define the spatial and temporal grid
+hx = (xend-xstart)/(Nx-1)
+ht = (tend-tstart)/(Nt-1)
+xs = np.linspace(xstart,xend,Nx)
+print(f"hx={hx:.2e}, ht={ht:.2e}")
+print(f"Nx={Nx}, Nt={Nt}")
+
+#create the system matrices
+if setup == "NL":
+    kappa_N = D_N*ht/(hx**2)
+    kappa_L = D_L*ht/(hx**2)
+    sysmat_N = make_system_matrix(Nx, kappa_N, bounds="neumann")
+    sysmat_L = make_system_matrix(Nx, kappa_L, bounds="neumann")
+elif setup == "NL_dimless":
+    kappa_N_dimless = ht/(hx**2)
+    kappa_L_dimless = d*ht/(hx**2)
+    sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
+    sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
 
 #run the simulation
 if setup == "NL":
-    # A_new, B_new = solver(NodalLefty_step)
-    A_new, B_new = solver(NodalLefty_splitting_step)
+    if time_disc == "EE_CD":
+        A_new, B_new = EE_CD(A_init, B_init)
+    elif time_disc == "strang_EE_IE":
+        A_new, B_new = strang_EE_IE(A_init, B_init)
 elif setup == "GM":
-    A_new, B_new = solver(GiererMeinhardt_step)
+    A_new, B_new = stepper(GiererMeinhardt_step)
 elif setup == "NL_dimless":
-    A_new, B_new = solver(NodalLefty_dimless_step)
+    # A_new, B_new = solver(NodalLefty_dimless_step)
+    A_new, B_new = stepper(NodalLefty_dimless_step)
 
-if np.max(A_new) > 2*np.min(A_new):
-    print("Condition for pattern formation fulfilled!")
-    val_diff = np.max(A_new) - np.min(A_new)
-    print(f"val_diff = {val_diff}")
-else:
-    print("Condition for pattern formation NOT fulfilled!")
-    val_diff = np.max(A_new) - np.min(A_new)
-    print(f"val_diff = {val_diff}")
+# if np.max(A_new) > 2*np.min(A_new):
+#     print("Condition for pattern formation fulfilled!")
+#     val_diff = np.max(A_new) - np.min(A_new)
+#     print(f"val_diff = {val_diff}")
+# else:
+#     print("Condition for pattern formation NOT fulfilled!")
+#     val_diff = np.max(A_new) - np.min(A_new)
+#     print(f"val_diff = {val_diff}")
 
 #check for pattern formation
-# N = 2
+# N = 40
 # max_val = 10
 # phase_diagram = np.zeros((N,N))
 # vals = np.linspace(0,max_val,N)
-# vals = [6,10]
+# # vals = [6,10]
 # for i in range(N):
 #     for j in range(N):
 #         alpha_N = vals[i]
@@ -345,12 +433,12 @@ else:
 #             alpha_L_ = alpha_L/(gamma_N*K_L)
 #             # print(f"alpha_N_ = {alpha_N_}, alpha_L_ = {alpha_L_}")
 #         if setup == "NL":
-#             A_new, B_new = solver(NodalLefty_step)
+#             A_new, B_new = solver(NodalLefty_splitting_step)
 #         elif setup == "NL_dimless":
-#             A_new, B_new = solver(NodalLefty_dimless_step)
-#         plt.plot(xs,A_new)
-#         plt.ylim(0,np.max(A_new))
-#         plt.show()
+#             A_new, B_new = solver(NodalLefty_dimless_splitting_step)
+#         # plt.plot(xs,A_new)
+#         # plt.ylim(0,np.max(A_new))
+#         # plt.show()
 #         val_diff = np.max(A_new) - np.min(A_new)
 #         print(f"val_diff = {val_diff}")
 #         phase_diagram[i,j] = val_diff
