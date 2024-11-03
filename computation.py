@@ -11,6 +11,9 @@ from functools import lru_cache
 ########################################################################################
 # auxiliary methods
 ########################################################################################
+'''
+Create system matrix for implicit euler solution of the diffusion equation
+'''
 @lru_cache(maxsize=8)
 def make_system_matrix(N, kappa, bounds=None):
     diags = [-kappa*np.ones(N-1),(1+2*kappa)*np.ones(N), -kappa*np.ones(N-1)]
@@ -65,22 +68,6 @@ def initialize_matrix(rows, option="white-noise"):
         # return np.random.uniform(low, high, (rows, cols))
         return np.random.rand(rows)
 
-'''
-One time step for the Gierer-Meinhardt model:
-Solve using 2nd order central differences in space and forward Euler in time
-'''
-def GiererMeinhardt_step(U_old, V_old):
-    #approximate the Laplacian operator using central differences
-    Lap_U = central_differences(U_old)
-    Lap_V = central_differences(V_old)
-    u = U_old[1:-1,1:-1]
-    v = V_old[1:-1,1:-1]
-    f = (u**2)/((1+mu*u**2)*v) - c*u
-    g = u**2 - a*v
-    U_new = u + ht*(r*f + D_u*Lap_U)
-    V_new = v + ht*(r*g + D_v*Lap_V)
-    return U_new, V_new
-
 ########################################################################################
 # reactions
 ########################################################################################
@@ -92,12 +79,18 @@ def hill_equation(N,L):
     zahler = pow(N,n_N)
     return zahler/nenner
 
+'''
+calculate the reaction part for Nodal and Lefty respectively
+'''
 def reaction_NL(N,L):
     hill_term = hill_equation(N,L)
     reaction_N = alpha_N*hill_term - gamma_N*N
     reaction_L = alpha_L*hill_term - gamma_L*L
     return reaction_N, reaction_L
 
+'''
+calculate the right hand side for Nodal and Lefty respectively (reaction + diffusion)
+'''
 def rhs_NL(N,L):
     Lap_N = central_differences(N)
     Lap_L = central_differences(L)
@@ -106,12 +99,18 @@ def rhs_NL(N,L):
     rhs_L = reaction_L + D_L*Lap_L
     return rhs_N, rhs_L
 
+'''
+calculate the reaction part for the dimensionless equations for Nodal and Lefty respectively
+'''
 def reaction_NL_dimless(N,L):
     hill_term = pow(N,n_N)/(pow(N,n_N) + pow((1+pow(L,n_L)),n_N))
     reaction_N = alpha_N_ * hill_term - N
     reaction_L = alpha_L_ * hill_term - gamma_*L
     return reaction_N, reaction_L
 
+'''
+calculate the right hand side for the dimensionless equations for Nodal and Lefty respectively (reaction + diffusion)
+'''
 def rhs_NL_dimless(N, L):
     Lap_N = central_differences(N)
     Lap_L = central_differences(L)
@@ -121,15 +120,21 @@ def rhs_NL_dimless(N, L):
     rhs_L = reaction_L + d*Lap_L
     return rhs_N, rhs_L
 
+'''
+calculate the reaction parts for the Gierer Meinhardt model
+'''
 def reaction_GM(U,V):
     f = r*((U**2)/((1+mu*U**2)*V) - c*U)
     g = r*(U**2 - a*V)
     return f, g
 
+'''
+calculate the right hand sides for the Gierer Meinhardt model (reaction + diffusion)
+'''
 def rhs_GM(U,V):
     Lap_U = central_differences(U)
     Lap_V = central_differences(V)
-    reaction_U, reaction_V = reaction_GM(U,V)
+    reaction_U, reaction_V = reaction_GM(U[1:-1],V[1:-1])
     rhs_U = reaction_U + D_u*Lap_U
     rhs_V = reaction_V + D_v*Lap_V
     return rhs_U, rhs_V
@@ -146,14 +151,23 @@ def central_differences(U):
     # return (U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])/(hx**2)
     return (U[0:-2] - 2*U[1:-1] + U[2:])/(hx**2)
 
+'''
+calculate one iteration of the explicit euler scheme
+'''
 def explicit_euler(u_old, rhs, ht):
     return u_old + ht*rhs
 
+'''
+calculate one iteration of the implicit euler scheme
+'''
 def implicit_euler(u, system_matrix):
     assert isinstance(system_matrix, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
     u_new = sparse.linalg.spsolve(system_matrix, u)
     return u_new
 
+'''
+calculate the next iteration for both species A and B and set boundaries
+'''
 def EE_CD_step(A, B, rhs):
     A_new = np.zeros(Nx)
     B_new = np.zeros(Nx)
@@ -167,35 +181,8 @@ def EE_CD_step(A, B, rhs):
     B_new[-1] = B_new[-2]
     return A_new, B_new
 
-def EE_CD(u0,v0, rhs):
-    return stepper(EE_CD_step, u0, v0, rhs)
-
-def make_strang_step(int0,int1,system_matrices):
-    def strang_step(u, v, rhs):
-        rhsA, rhsB = rhs(u,v)
-        # solve the first equation for the first half time interval
-        u = int0(u, rhsA, ht/2)
-        v = int0(v, rhsB, ht/2)
-        # solve the second equation for one time interval
-        sysmat_N, sysmat_L = system_matrices
-        u = int1(u, sysmat_N)
-        v = int1(v, sysmat_L)
-        # solve the first equation for the second half time interval
-        u = int0(u, rhsA, ht/2)
-        v = int0(v, rhsB, ht/2)
-        return u,v
-    return strang_step
-
-def strang_EE_IE(u0,v0, rhs):
-    kappa_N = D_N*ht/(hx**2)
-    kappa_L = D_L*ht/(hx**2)
-    sysmat_N = make_system_matrix(Nx, kappa_N, bounds = "neumann")
-    sysmat_L = make_system_matrix(Nx, kappa_L, bounds = "neumann")
-    system_matrices = [sysmat_N, sysmat_L]
-    return stepper(make_strang_step(explicit_euler, implicit_euler, system_matrices), u0, v0, rhs)
-
 '''
-Solve the PDE for a given model
+loop over all time steps for a given integrator and right hand side
 '''
 def stepper(integrator, A0, B0, rhs):
     #main loop
@@ -235,6 +222,42 @@ def stepper(integrator, A0, B0, rhs):
     print(f"\ndone! time taken: {(tok-tik)/60:.1f}min {(tok-tik):.1f}s")
     
     return A_new, B_new
+
+'''
+loop over all time steps for the Explicit Euler and Central Differences discretization
+'''
+def EE_CD(u0,v0, rhs):
+    return stepper(EE_CD_step, u0, v0, rhs)
+
+'''
+define a strang step for 2 given integrators
+'''
+def make_strang_step(int0,int1,system_matrices):
+    def strang_step(u, v, rhs):
+        rhsA, rhsB = rhs(u,v)
+        # solve the first equation for the first half time interval
+        u = int0(u, rhsA, ht/2)
+        v = int0(v, rhsB, ht/2)
+        # solve the second equation for one time interval
+        sysmat_N, sysmat_L = system_matrices
+        u = int1(u, sysmat_N)
+        v = int1(v, sysmat_L)
+        # solve the first equation for the second half time interval
+        u = int0(u, rhsA, ht/2)
+        v = int0(v, rhsB, ht/2)
+        return u,v
+    return strang_step
+
+'''
+loop over all time steps for the strang splitting method using Explicit Euler and Implicit Euler methods
+'''
+def strang_EE_IE(u0,v0, rhs):
+    kappa_N = D_N*ht/(hx**2)
+    kappa_L = D_L*ht/(hx**2)
+    sysmat_N = make_system_matrix(Nx, kappa_N, bounds = "neumann")
+    sysmat_L = make_system_matrix(Nx, kappa_L, bounds = "neumann")
+    system_matrices = [sysmat_N, sysmat_L]
+    return stepper(make_strang_step(explicit_euler, implicit_euler, system_matrices), u0, v0, rhs)
 
 ########################################################################################
 # main
@@ -363,17 +386,18 @@ if __name__ == '__main__':
         ht = (tend-tstart)/(Nt-1)
 
     #run the simulation
-    if True:
+    if False:
         if setup == "NL":
             if time_disc == "EE_CD":
                 A_new, B_new = EE_CD(A_init, B_init, rhs_NL)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
         elif setup == "GM":
-            A_new, B_new = stepper(GiererMeinhardt_step)
+            if time_disc == "EE_CD":
+                A_new, B_new = EE_CD(A_init, B_init, rhs_GM)
+            elif time_disc == "strang_EE_IE":
+                A_new, B_new = strang_EE_IE(A_init, B_init, reaction_GM)
         elif setup == "NL_dimless":
-            # A_new, B_new = solver(NodalLefty_dimless_step)
-            # A_new, B_new = stepper(NodalLefty_dimless_step)
             if time_disc == "EE_CD":
                 A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
             elif time_disc == "strang_EE_IE":
@@ -381,7 +405,6 @@ if __name__ == '__main__':
 
         #save data of last time step
         fig, axs = plt.subplots(1,1,figsize=(12,5))
-        # img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n, dimless=dimless)
         axs.plot(xs,A_new,color="red",label="Nodal")
         axs.plot(xs,B_new,color="blue",label="Lefty")
         axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
@@ -390,9 +413,9 @@ if __name__ == '__main__':
         np.save(f"out/{outdir}/data/A_{ht}_{hx}_{tend}_{xend}.npy",A_new)
         np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
 
-    # check for pattern formation
+    # plot phase diagram for different values of alpha_N and alpha_L
     if False:
-        N = 40
+        N = 2
         max_val = 10
         phase_diagram = np.zeros((N,N))
         vals = np.linspace(0,max_val,N)
@@ -407,12 +430,17 @@ if __name__ == '__main__':
                     alpha_L_ = alpha_L/(gamma_N*K_L)
                     # print(f"alpha_N_ = {alpha_N_}, alpha_L_ = {alpha_L_}")
                 if setup == "NL":
-                    A_new, B_new = solver(NodalLefty_splitting_step)
+                    if time_disc == "EE_CD":
+                        A_new, B_new = EE_CD(A_init, B_init, rhs_NL)
+                    elif time_disc == "strang_EE_IE":
+                        A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
+                    # A_new, B_new = solver(NodalLefty_splitting_step)
                 elif setup == "NL_dimless":
-                    A_new, B_new = solver(NodalLefty_dimless_splitting_step)
-                # plt.plot(xs,A_new)
-                # plt.ylim(0,np.max(A_new))
-                # plt.show()
+                    if time_disc == "EE_CD":
+                        A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
+                    elif time_disc == "strang_EE_IE":
+                        A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
+                    # A_new, B_new = solver(NodalLefty_dimless_splitting_step)
                 val_diff = np.max(A_new) - np.min(A_new)
                 print(f"val_diff = {val_diff}")
                 phase_diagram[i,j] = val_diff
