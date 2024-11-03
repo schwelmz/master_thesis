@@ -132,11 +132,13 @@ def reaction_GM(U,V):
 calculate the right hand sides for the Gierer Meinhardt model (reaction + diffusion)
 '''
 def rhs_GM(U,V):
+    rhs_U = np.zeros(Nx)
+    rhs_V = np.zeros(Nx)
     Lap_U = central_differences(U)
     Lap_V = central_differences(V)
     reaction_U, reaction_V = reaction_GM(U[1:-1],V[1:-1])
-    rhs_U = reaction_U + D_u*Lap_U
-    rhs_V = reaction_V + D_v*Lap_V
+    rhs_U[1:-1] = reaction_U + D_u*Lap_U
+    rhs_V[1:-1] = reaction_V + D_v*Lap_V
     return rhs_U, rhs_V
 
 ########################################################################################
@@ -154,16 +156,34 @@ def central_differences(U):
 '''
 calculate one iteration of the explicit euler scheme
 '''
-def explicit_euler(u_old, rhs, ht):
-    return u_old + ht*rhs
+def explicit_euler(u_old, v_old, rhs, ht):
+    rhs_u, rhs_v = rhs(u_old, v_old)
+    u_new = u_old + ht*rhs_u
+    v_new = v_old + ht*rhs_v
+    return u_new, v_new
 
 '''
 calculate one iteration of the implicit euler scheme
 '''
-def implicit_euler(u, system_matrix):
-    assert isinstance(system_matrix, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
-    u_new = sparse.linalg.spsolve(system_matrix, u)
-    return u_new
+def implicit_euler(u, v, system_matrices):
+    sysmat_N, sysmat_L = system_matrices
+    assert isinstance(sysmat_N, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
+    assert isinstance(sysmat_L, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
+    u_new = sparse.linalg.spsolve(sysmat_N, u)
+    v_new = sparse.linalg.spsolve(sysmat_L, v)
+    return u_new, v_new
+
+'''
+calculate one iteration of the heun scheme
+'''
+def heun(u_old, v_old, rhs, ht):
+    rhs_u_old, rhs_v_old = rhs(u_old, v_old)
+    u_inter = u_old + ht*rhs_u_old
+    v_inter = v_old + ht*rhs_v_old
+    rhs_u_inter, rhs_v_inter = rhs(u_inter, v_inter)
+    u_new = u_old + ht/2*(rhs_u_old+rhs_u_inter)
+    v_new = v_old + ht/2*(rhs_v_old+rhs_v_inter)
+    return u_new, v_new
 
 '''
 calculate the next iteration for both species A and B and set boundaries
@@ -171,9 +191,8 @@ calculate the next iteration for both species A and B and set boundaries
 def EE_CD_step(A, B, rhs):
     A_new = np.zeros(Nx)
     B_new = np.zeros(Nx)
-    f_A, f_B = rhs(A,B)
-    A_new[1:-1] = explicit_euler(A[1:-1], f_A, ht)
-    B_new[1:-1] = explicit_euler(B[1:-1], f_B, ht)
+    # f_A, f_B = rhs(A,B)
+    A_new, B_new = explicit_euler(A, B, rhs, ht)
     # set Neumann boundary values
     A_new[0] = A_new[1]     #left
     B_new[0] = B_new[1]
@@ -234,17 +253,12 @@ define a strang step for 2 given integrators
 '''
 def make_strang_step(int0,int1,system_matrices):
     def strang_step(u, v, rhs):
-        rhsA, rhsB = rhs(u,v)
         # solve the first equation for the first half time interval
-        u = int0(u, rhsA, ht/2)
-        v = int0(v, rhsB, ht/2)
+        u, v = int0(u, v, rhs, ht/2)
         # solve the second equation for one time interval
-        sysmat_N, sysmat_L = system_matrices
-        u = int1(u, sysmat_N)
-        v = int1(v, sysmat_L)
+        u, v = int1(u, v, system_matrices)
         # solve the first equation for the second half time interval
-        u = int0(u, rhsA, ht/2)
-        v = int0(v, rhsB, ht/2)
+        u, v = int0(u, v, rhs, ht/2)
         return u,v
     return strang_step
 
@@ -252,12 +266,13 @@ def make_strang_step(int0,int1,system_matrices):
 loop over all time steps for the strang splitting method using Explicit Euler and Implicit Euler methods
 '''
 def strang_EE_IE(u0,v0, rhs):
-    kappa_N = D_N*ht/(hx**2)
-    kappa_L = D_L*ht/(hx**2)
-    sysmat_N = make_system_matrix(Nx, kappa_N, bounds = "neumann")
-    sysmat_L = make_system_matrix(Nx, kappa_L, bounds = "neumann")
-    system_matrices = [sysmat_N, sysmat_L]
     return stepper(make_strang_step(explicit_euler, implicit_euler, system_matrices), u0, v0, rhs)
+
+'''
+loop over all time steps for the strang splitting method using Heun's and Implicit Euler methods
+'''
+def strang_H_IE(u0,v0,rhs):
+    return stepper(make_strang_step(heun, implicit_euler, system_matrices), u0, v0, rhs)
 
 ########################################################################################
 # main
@@ -364,11 +379,19 @@ if __name__ == '__main__':
         kappa_L = D_L*ht/(hx**2)
         sysmat_N = make_system_matrix(Nx, kappa_N, bounds="neumann")
         sysmat_L = make_system_matrix(Nx, kappa_L, bounds="neumann")
+        system_matrices = [sysmat_N, sysmat_L]
     elif setup == "NL_dimless":
         kappa_N_dimless = ht/(hx**2)
         kappa_L_dimless = d*ht/(hx**2)
         sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
         sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
+        system_matrices = [sysmat_N, sysmat_L]
+    elif setup == "GM":
+        kappa_u = D_u*ht/(hx**2)
+        kappa_v = D_v*ht/(hx**2)
+        sysmat_u = make_system_matrix(Nx, kappa_u, bounds="neumann")
+        sysmat_v = make_system_matrix(Nx, kappa_v, bounds="neumann")
+        system_matrices = [sysmat_u, sysmat_v]
 
     #option to continue simulation on old data, otherwise set initial conditino as "4dots", "random-dots" or "white-noise"
     if args.input is None:
@@ -386,27 +409,35 @@ if __name__ == '__main__':
         ht = (tend-tstart)/(Nt-1)
 
     #run the simulation
-    if False:
+    if True:
         if setup == "NL":
             if time_disc == "EE_CD":
                 A_new, B_new = EE_CD(A_init, B_init, rhs_NL)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
+            elif time_disc == "strang_H_IE":
+                A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL)
         elif setup == "GM":
             if time_disc == "EE_CD":
                 A_new, B_new = EE_CD(A_init, B_init, rhs_GM)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_GM)
+            elif time_disc == "strang_H_IE":
+                A_new, B_new = strang_H_IE(A_init, B_init, reaction_GM)
         elif setup == "NL_dimless":
             if time_disc == "EE_CD":
                 A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
+            elif time_disc == "strang_H_IE":
+                A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
+        else:
+            print("Combination of model and discretization method not supported!")
 
         #save data of last time step
         fig, axs = plt.subplots(1,1,figsize=(12,5))
-        axs.plot(xs,A_new,color="red",label="Nodal")
-        axs.plot(xs,B_new,color="blue",label="Lefty")
+        axs.plot(xs,A_new,color="red",label="species A")
+        axs.plot(xs,B_new,color="blue",label="species B")
         axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
         axs.legend()
         fig.savefig(f"out/{outdir}/plots/lineplot_end")
