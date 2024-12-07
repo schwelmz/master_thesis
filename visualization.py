@@ -15,32 +15,57 @@ cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
 # cm_bo = "seismic"
 # cm_bb = "BrBG"
 
-def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False):
-    #ax0
-    im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo, vmin=0)
-    axs[0].set_title(f"Species A")
-    cb0 = fig.colorbar(im0, ax=axs[0])
-    #ax1
-    im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb, vmin=0)
-    axs[1].set_title(f"Species B")
-    cb1 = fig.colorbar(im1, ax=axs[1])
-
-    if dimless == True:
-        fig.suptitle(fr"$t^* = t\gamma_N = ${time:.2f}")
-        axs[0].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
-        axs[1].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
-        axs[0].set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
-        axs[1].set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
-        cb0.set_label(r"$u = \frac{N}{K_N}$")
-        cb1.set_label(r"$v = \frac{L}{K_L}$")
+def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, colorbar=True, vmax=None):
+    if vmax == None:
+        vmax = np.max(N)
+    if singleplot == True: 
+        im0 = axs.imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo, vmin=0, vmax=vmax)
+        if colorbar == True:
+            cb0 = fig.colorbar(im0, ax=axs)
+        if dimless == True:
+            axs.set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
+            axs.set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
+            if colorbar == True:
+                cb0.set_label(r"$u = \frac{N}{K_N}$")
+        else:
+            axs.set_xlabel(r"domain width [$\mu m$]")
+            axs.set_ylabel(r"domain height [$\mu m$]")
+            if colorbar == True:
+                cb0.set_label(r"Nodal [$nM/\mu m$]")
     else:
-        fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
-        axs[0].set_xlabel(r"domain width [$\mu m$]")
-        axs[0].set_ylabel(r"domain height [$\mu m$]")
-        axs[1].set_xlabel(r"domain width [$\mu m$]")
-        axs[1].set_ylabel(r"domain height [$\mu m$]")
-        cb0.set_label(r"Nodal [$nM/\mu m$]")
-        cb1.set_label(r"Lefty [nM/\mu m]")
+        #ax0
+        im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo, vmin=0)
+        axs[0].set_title(f"Species A")
+        if colorbar == True:
+            cb0 = fig.colorbar(im0, ax=axs[0])
+        #ax1
+        im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb, vmin=0)
+        axs[1].set_title(f"Species B")
+        if colorbar == True:
+            cb1 = fig.colorbar(im1, ax=axs[1])
+
+        if dimless == True:
+            fig.suptitle(fr"$t^* = t\gamma_N = ${time:.2f}")
+            axs[0].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
+            axs[0].set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
+            if colorbar == True:
+                cb0.set_label(r"$u = \frac{N}{K_N}$")
+            if singleplot == False: 
+                axs[1].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
+                axs[1].set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
+                if colorbar == True:
+                    cb1.set_label(r"$v = \frac{L}{K_L}$")
+        else:
+            fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
+            axs[0].set_xlabel(r"domain width [$\mu m$]")
+            axs[0].set_ylabel(r"domain height [$\mu m$]")
+            if colorbar == True:
+                cb0.set_label(r"Nodal [$nM/\mu m$]")
+            if singleplot == False: 
+                axs[1].set_xlabel(r"domain width [$\mu m$]")
+                axs[1].set_ylabel(r"domain height [$\mu m$]")
+                if colorbar == True:
+                    cb1.set_label(r"Lefty [nM/\mu m]")
 
     plt.subplots_adjust(left=0.1,right=0.95)
 

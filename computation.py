@@ -294,5 +294,5 @@ elif setup == "NL_dimless":
     A_new, B_new = solver(NodalLefty_dimless_step)
 
 #save data of last time step
-np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
-np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
+# np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
+# np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
