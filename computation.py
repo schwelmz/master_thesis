@@ -188,11 +188,14 @@ def heun(u_old, v_old, rhs, ht):
 '''
 calculate the next iteration for both species A and B and set boundaries
 '''
-def EE_CD_step(A, B, rhs):
+def EE_step(A, B, rhs):
     A_new = np.zeros(Nx)
     B_new = np.zeros(Nx)
     # f_A, f_B = rhs(A,B)
-    A_new, B_new = explicit_euler(A, B, rhs, ht)
+    # A_new, B_new = explicit_euler(A, B, rhs, ht)
+    rhs_A, rhs_B = rhs(A,B)
+    A_new[1:-1] = A[1:-1] + ht*rhs_A
+    B_new[1:-1] = B[1:-1] + ht*rhs_B
     # set Neumann boundary values
     A_new[0] = A_new[1]     #left
     B_new[0] = B_new[1]
@@ -245,8 +248,8 @@ def stepper(integrator, A0, B0, rhs):
 '''
 loop over all time steps for the Explicit Euler and Central Differences discretization
 '''
-def EE_CD(u0,v0, rhs):
-    return stepper(EE_CD_step, u0, v0, rhs)
+def EE(u0,v0, rhs):
+    return stepper(EE_step, u0, v0, rhs)
 
 '''
 define a strang step for 2 given integrators
@@ -339,16 +342,15 @@ if __name__ == '__main__':
         alpha_N_ = alpha_N/(gamma_N*K_N)
         alpha_L_ = alpha_L/(gamma_N*K_L)
         gamma_ = gamma_L/gamma_N
-        # d = D_L/D_N
-        d = 500
+        d = D_L/D_N
         print("alpha_N_ = ",alpha_N_)
         print("alpha_L_ = ",alpha_L_)
         print("gamma_ = ", gamma_)
-        # print("d = ",d)
+        print("d = ",d)
         xstart = 0
         xend = 100
         tstart = 0
-        tend = 1000     #5000
+        tend = 500     #5000
         Nx = 101
         Nt = int(1e4)
         dimless=True
@@ -412,8 +414,8 @@ if __name__ == '__main__':
     #run the simulation
     if False:
         if setup == "NL":
-            if time_disc == "EE_CD":
-                A_new, B_new = EE_CD(A_init, B_init, rhs_NL)
+            if time_disc == "EE":
+                A_new, B_new = EE(A_init, B_init, rhs_NL)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
             elif time_disc == "strang_H_IE":
@@ -426,8 +428,8 @@ if __name__ == '__main__':
             elif time_disc == "strang_H_IE":
                 A_new, B_new = strang_H_IE(A_init, B_init, reaction_GM)
         elif setup == "NL_dimless":
-            if time_disc == "EE_CD":
-                A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
+            if time_disc == "EE":
+                A_new, B_new = EE(A_init, B_init, rhs_NL_dimless)
             elif time_disc == "strang_EE_IE":
                 A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
             elif time_disc == "strang_H_IE":
@@ -446,7 +448,7 @@ if __name__ == '__main__':
         np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
 
     # plot phase diagram for different values of alpha_N and alpha_L
-    if False:
+    if True:
         N = 2
         max_val = 10
         phase_diagram = np.zeros((N,N))
@@ -462,14 +464,14 @@ if __name__ == '__main__':
                     alpha_L_ = alpha_L/(gamma_N*K_L)
                     # print(f"alpha_N_ = {alpha_N_}, alpha_L_ = {alpha_L_}")
                 if setup == "NL":
-                    if time_disc == "EE_CD":
-                        A_new, B_new = EE_CD(A_init, B_init, rhs_NL)
+                    if time_disc == "EE":
+                        A_new, B_new = EE(A_init, B_init, rhs_NL)
                     elif time_disc == "strang_EE_IE":
                         A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
                     # A_new, B_new = solver(NodalLefty_splitting_step)
                 elif setup == "NL_dimless":
-                    if time_disc == "EE_CD":
-                        A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
+                    if time_disc == "EE":
+                        A_new, B_new = EE(A_init, B_init, rhs_NL_dimless)
                     elif time_disc == "strang_EE_IE":
                         A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
                     # A_new, B_new = solver(NodalLefty_dimless_splitting_step)
@@ -484,7 +486,7 @@ if __name__ == '__main__':
         plt.show()
 
     # check pattern formation for different diffusion rates
-    if True:
+    if False:
         d_max = 200
         N_samples = 20
         d_vals = np.linspace(100, d_max, N_samples)
