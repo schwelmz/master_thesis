@@ -126,36 +126,68 @@ plt.figure()
 # plt.contour(U, V, G, levels=[0], colors='orange', linewidths=2, linestyles='-')
 Nlines = 5
 cmap1 = plt.get_cmap('cool')(np.linspace(0,1,Nlines))
-cmap2 = plt.get_cmap('autumn')(np.linspace(0,1,Nlines))
-h=0
 # for alpha_L in np.linspace(5,20,Nlines):
-for alpha_N in [8]:
-    alpha_N_ = alpha_N/(gamma_N*K_N)
-    v_func_f_roots = [(alpha_N_+np.sqrt(alpha_N_**2-4))/2, (alpha_N_-np.sqrt(alpha_N_**2-4))/2]
-    us = np.linspace(np.min(v_func_f_roots)+1e-10,np.max(v_func_f_roots),1000,dtype=np.float64)
-    print(f"alpha_N_ = {alpha_N_}, alpha_L = {alpha_N}")
-    plt.plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
-    k=0
-    for alpha_L in [5,15.74,40]:
+if True:
+    for alpha_N in [8]:
+        alpha_N_ = alpha_N/(gamma_N*K_N)
+        v_func_f_roots = [(alpha_N_+np.sqrt(alpha_N_**2-4))/2, (alpha_N_-np.sqrt(alpha_N_**2-4))/2]
+        us = np.linspace(np.min(v_func_f_roots)+1e-10,np.max(v_func_f_roots),1000,dtype=np.float64)
+        print(f"alpha_N_ = {alpha_N_}, alpha_L = {alpha_N}")
+        plt.plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+        k=0
+        for alpha_L in [5,15.74,40]:
+            alpha_L_ = alpha_L/(gamma_N*K_L)
+            print(f"alpha_L_ = {alpha_L_}, alpha_L = {alpha_L}")
+            #plot nullclines
+            plt.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+            #compute steady states
+            ss = comp_steadyStates(f,g)
+            steady_states_u_stable, steady_states_v_stable, steady_states_u_unstable, steady_states_v_unstable = stability_analyis(ss)
+            plt.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
+            plt.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
+            print(f"Number of steady states: {len(steady_states_u_stable) + len(steady_states_u_unstable)}")
+            k+=1
+    #sve plot
+    plt.xlabel('u')
+    plt.ylabel('v')
+    plt.xlim(-0.1,2.25)
+    plt.ylim(-0.1,2.25)
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(f"../../thesis/figures/nullclines_parameter2_alphaLrange.png")
+plt.show()
+
+Nlines = 4
+cmap2 = plt.get_cmap('autumn')(np.linspace(0,1,Nlines))
+if True:
+    for alpha_L in [10]:
         alpha_L_ = alpha_L/(gamma_N*K_L)
         print(f"alpha_L_ = {alpha_L_}, alpha_L = {alpha_L}")
-        #plot nullclines
-        plt.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
-        #compute steady states
-        ss = comp_steadyStates(f,g)
-        steady_states_u_stable, steady_states_v_stable, steady_states_u_unstable, steady_states_v_unstable = stability_analyis(ss)
-        plt.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
-        plt.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
-        print(f"Number of steady states: {len(steady_states_u_stable) + len(steady_states_u_unstable)}")
-        k+=1
-    h+=1
-
-plt.xlabel('u')
-plt.ylabel('v')
-plt.xlim(-0.1,np.max(v_func_f_roots)/3)
-plt.ylim(-0.1,2)
-plt.legend()
-plt.grid()
-plt.tight_layout()
-plt.savefig(f"../../thesis/figures/nullclines_parameter2.png")
+        #plot nullcline
+        plt.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color="blue", label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+        h=0
+        for alpha_N in [4,6.45,15]:
+            alpha_N_ = alpha_N/(gamma_N*K_N)
+            v_func_f_roots = [(alpha_N_+np.sqrt(alpha_N_**2-4))/2, (alpha_N_-np.sqrt(alpha_N_**2-4))/2]
+            us = np.linspace(np.min(v_func_f_roots)+1e-10,np.max(v_func_f_roots),1000,dtype=np.float64)
+            print(f"alpha_N_ = {alpha_N_}, alpha_L = {alpha_N}")
+            #plot nullcline
+            plt.plot(us, v_func_f(us), color=cmap2[h], linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+            #compute steady states
+            ss = comp_steadyStates(f,g)
+            steady_states_u_stable, steady_states_v_stable, steady_states_u_unstable, steady_states_v_unstable = stability_analyis(ss)
+            plt.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
+            plt.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
+            print(f"Number of steady states: {len(steady_states_u_stable) + len(steady_states_u_unstable)}")
+            h+=1
+    #sve plot
+    plt.xlabel('u')
+    plt.ylabel('v')
+    plt.xlim(-0.1,2.25)
+    plt.ylim(-0.1,2.25)
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(f"../../thesis/figures/nullclines_parameter2_alphaNrange.png")
 plt.show()

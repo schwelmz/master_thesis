@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import settings
 
+plt.rcParams.update({'font.size': 16})
+
 # read parameters
 parameters = settings.read_parameters()
 settings.print_settings(parameters)
@@ -81,7 +83,9 @@ plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower")
 plt.xlabel(r"$\alpha_L$")
 plt.ylabel(r"$\alpha_N$")
 # plt.axhline(y=8,color="red")
+plt.grid()
 cb = plt.colorbar()
 cb.set_label(r"$\max(N)-\min(N)$")
-# fig.savefig(f"out/{outdir}/data/phase_diagam.png")
+plt.savefig(f"out/{outdir}/data/phase_diagram_parameter2.png")
+plt.savefig(f"../../thesis/figures/phase_diagram_parameter2.png")
 plt.show()
