@@ -23,8 +23,8 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, co
         if colorbar == True:
             cb0 = fig.colorbar(im0, ax=axs)
         if dimless == True:
-            axs.set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
-            axs.set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
+            axs.set_xlabel(r"$x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
+            axs.set_ylabel(r"$y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
             if colorbar == True:
                 cb0.set_label(r"$u = \frac{N}{K_N}$")
         else:

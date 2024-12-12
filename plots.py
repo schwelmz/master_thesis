@@ -57,8 +57,8 @@ elif setup == "GM":     #Gierer-Meinhardt
     Ny = 200
     Nt = int(1e4)
 elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
-    alpha_N = float(parameters['alpha_N'])
-    alpha_L = float(parameters['alpha_L'])
+    # alpha_N = float(parameters['alpha_N'])
+    # alpha_L = float(parameters['alpha_L'])
     # k_p = float(parameters['k_p'])
     n_N = float(parameters['n_N'])
     n_L = float(parameters['n_L'])
@@ -69,12 +69,8 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     D_N = float(parameters['D_N'])
     D_L = float(parameters['D_L'])
     #dimensionless parameters:
-    alpha_N_ = alpha_N/(gamma_N*K_N)
-    alpha_L_ = alpha_L/(gamma_N*K_L)
     gamma_ = gamma_L/gamma_N
     d = D_L/D_N
-    print("alpha_N_ = ",alpha_N_)
-    print("alpha_L_ = ",alpha_L_)
     print("gamma_ = ", gamma_)
     print("d = ",d)
     xstart = 0
@@ -97,28 +93,39 @@ ys = np.linspace(ystart,yend,Ny)
 print(f"hx={hx:.2e}, hy={hy:.2e}, ht={ht:.2e}")
 print(f"Nx={Nx}, Ny={Ny}, Nt={Nt}")
 
-A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
-B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
+positions = ["left", "mid", "mid", "right"]
+p=0
+for alpha_L in[10]:
+    for alpha_N in [4,6.45,13,15]:
+        alpha_N_ = alpha_N/(gamma_N*K_N)
+        alpha_L_ = alpha_L/(gamma_N*K_L)
+        print("alpha_N_ = ",alpha_N_)
+        print("alpha_L_ = ",alpha_L_)
+        outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
+        print(outdir)
+        A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
+        B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
 
-if not os.path.exists(f"out/{outdir}/figures"):
-    os.makedirs(f"out/{outdir}/figures")
-    print("exists")
-else: 
-    shutil.rmtree(f"out/{outdir}/figures")
-    print(f"old figures directory deleted")
-    os.makedirs(f"out/{outdir}/figures")
+        # if not os.path.exists(f"out/{outdir}/figures"):
+        #     os.makedirs(f"out/{outdir}/figures")
+        #     print("exists")
+        # else: 
+        #     shutil.rmtree(f"out/{outdir}/figures")
+        #     print(f"old figures directory deleted")
+        #     os.makedirs(f"out/{outdir}/figures")
 
-position = "left"
-fig, axs = plt.subplots(constrained_layout=False)
-if position != "right":
-    colorbar = False
-else:
-    colorbar = True
-img = vis.heatmap(fig,axs,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True, colorbar=colorbar, vmax=1.3)
-axs.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
-if position != "left":
-    axs.yaxis.set_ticklabels([])
-    axs.set_ylabel("")
-plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
-fig.savefig(f"out/{outdir}/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
-fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+        fig, axs = plt.subplots(constrained_layout=False)
+        position = positions[p]
+        if position != "right":
+            colorbar = False
+        else:
+            colorbar = True
+        img = vis.heatmap(fig,axs,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True, colorbar=colorbar,vmax=3)
+        axs.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
+        if position != "left":
+            axs.yaxis.set_ticklabels([])
+            axs.set_ylabel("")
+        plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
+        fig.savefig(f"out/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+        fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+        p+=1
