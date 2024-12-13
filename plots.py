@@ -78,8 +78,12 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     dimless=True
 
 max_val = 40
+points = [(8,5), (8,7), (8,15.74), (8,25), (4,10), (6.45,10), (13,10), (15,10)]
+labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
 phase_diagram = np.load(f"out/{outdir}/data/phase_diagram.npy")#[0:10,0:10]
 plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower")
+for (x,y), label in zip(points, labels):
+    plt.text(y,x,label, color="white", ha="center", va="center", fontsize="12")
 plt.xlabel(r"$\alpha_L$")
 plt.ylabel(r"$\alpha_N$")
 # plt.axhline(y=8,color="red")
