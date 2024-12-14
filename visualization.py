@@ -7,11 +7,13 @@ import matplotlib.colors as clr
 # Define the colors
 # black_orange = ["black", "salmon"]  # RGB values for black and orange
 # black_blue = ["black", "cornflowerblue"]  # RGB values for black and blue
-black_orange = ["black", "red"]  # RGB values for black and orange
-black_blue = ["black", "blue"]  # RGB values for black and blue
+# black_orange = ["black", "red"]  # RGB values for black and orange
+# black_blue = ["black", "blue"]  # RGB values for black and blue
 # Create the colormap
-cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
-cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
+# cm_bo = clr.LinearSegmentedColormap.from_list("black_orange", black_orange)
+# cm_bb = clr.LinearSegmentedColormap.from_list("black_blue", black_blue)
+cm_bo = plt.get_cmap("BuPu")
+cm_bb = plt.get_cmap("PuBuGn")
 # cm_bo = "seismic"
 # cm_bb = "BrBG"
 

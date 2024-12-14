@@ -78,10 +78,10 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     ystart = 0
     yend = 100
     tstart = 0
-    tend = 500
+    tend = 100
     Nx = 101
     Ny = 101
-    Nt = int(5e4)
+    Nt = int(1e5)
     dimless=True
 
 #Define the spatial and temporal grid
@@ -107,10 +107,10 @@ if False:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=3)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=2.5)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=3)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=2.5)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
@@ -130,10 +130,10 @@ if False:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=3)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=2.5)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=3)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=2.5)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
@@ -142,7 +142,7 @@ if False:
         p+=1
 
 #side by side Nodal and Lefty
-if False:
+if True:
     A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
     B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
     fig, axs = plt.subplots(1,2,figsize=(1.2*12,1.2*5))
@@ -152,11 +152,11 @@ if False:
     fig.savefig(f"../../thesis/figures/NLsidebyside_parameter2_{alpha_N}_{alpha_L}_{tend}.png")
 
 #instances of diffusion test
-if True:
+if False:
     positions = ["left", "right", "left", "right"]
-    p=0
-    for d in [18,20,22]:
-    # for d in [100]:
+    p=3
+    # for d in [18,20,22]:
+    for d in [100]:
         outdir = f"NL_dimless_parameter2_diffusion_{d}"
         print(outdir)
         A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
