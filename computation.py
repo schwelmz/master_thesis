@@ -412,7 +412,7 @@ if __name__ == '__main__':
         ht = (tend-tstart)/(Nt-1)
 
     #run the simulation
-    if True:
+    if False:
         if setup == "NL":
             if time_disc == "EE":
                 A_new, B_new = EE(A_init, B_init, rhs_NL)
@@ -493,32 +493,45 @@ if __name__ == '__main__':
         plt.savefig(f"out/{outdir}/data/phase_diagram.png")
 
     # check pattern formation for different diffusion rates
-    if False:
-        d_max = 200
-        N_samples = 20
-        d_vals = np.linspace(100, d_max, N_samples)
-        val_diffs = []
-        for d in d_vals:
-            print(f"d = {d}")
-            # build system matrices
-            kappa_N_dimless = ht/(hx**2)
-            kappa_L_dimless = d*ht/(hx**2)
-            sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
-            sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
-            system_matrices = [sysmat_N, sysmat_L]
-            #select solver
-            if time_disc == "EE_CD":
-                A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
-            elif time_disc == "strang_EE_IE":
-                A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
-            elif time_disc == "strang_H_IE":
-                A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
-            #check pattern formation
-            val_diff = np.max(A_new) - np.min(A_new)
-            print(f"val_diff = {val_diff}")
-            val_diffs.append(val_diff)
-        #plot result
-        plt.plot(d_vals,val_diffs)
-        plt.xlabel(r"$d=\frac{D_L}{D_N}$")
-        plt.ylabel(r"$N_\text{max}-N_\text{min}$")
-        plt.show()
+    if True:
+        d_min = 0
+        d_max = 100
+        N_samples = 101
+        d_vals = np.linspace(d_min, d_max, N_samples)
+        val_diffs_mat = np.zeros((4,N_samples))
+        cmap = plt.cm.jet(np.arange(1,10))
+        k=0
+        for ht in [1e-2]:
+            print(f"tend = {tend}")
+            # ht = (tend-tstart)/(Nt-1)
+            # ht=1e-2
+            tend=500
+            Nt = int(tend//ht)
+            val_diffs = []
+            for d in d_vals:
+                print(f"d = {d}")
+                # build system matrices
+                kappa_N_dimless = ht/(hx**2)
+                kappa_L_dimless = d*ht/(hx**2)
+                sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
+                sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
+                system_matrices = [sysmat_N, sysmat_L]
+                #select solver
+                if time_disc == "EE_CD":
+                    A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
+                elif time_disc == "strang_EE_IE":
+                    A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
+                elif time_disc == "strang_H_IE":
+                    A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
+                #check pattern formation
+                val_diff = np.max(A_new) - np.min(A_new)
+                print(f"val_diff = {val_diff}")
+                val_diffs.append(val_diff)
+            #plot result
+            val_diffs_mat[k,:] = val_diffs
+            # plt.plot(d_vals,val_diffs, color=cmap[k])
+            # plt.xlabel(r"$d=\frac{D_L}{D_N}$")
+            # plt.ylabel(r"$N_\text{max}-N_\text{min}$")
+            k+=1
+        np.save(f"out/{outdir}/data/diffusion_rates_test.npy",val_diffs_mat)
+        # plt.show()
