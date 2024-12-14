@@ -350,9 +350,9 @@ if __name__ == '__main__':
         xstart = 0
         xend = 100
         tstart = 0
-        tend = 1000     #5000
+        tend = 500     #5000
         Nx = 101
-        Nt = int(2e4)
+        Nt = int(5e4)
         dimless=True
 
     #save 250 images in total spread evenly accross the timesteps
@@ -448,8 +448,8 @@ if __name__ == '__main__':
         np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
 
     # plot phase diagram for different values of alpha_N and alpha_L
-    if False:
-        N = 40
+    if True:
+        N = 41
         max_val = 40
         phase_diagram = np.zeros((N,N))
         vals = np.linspace(0,max_val,N)
@@ -493,7 +493,7 @@ if __name__ == '__main__':
         plt.savefig(f"out/{outdir}/data/phase_diagram.png")
 
     # check pattern formation for different diffusion rates
-    if True:
+    if False:
         d_min = 0
         d_max = 100
         N_samples = 101
