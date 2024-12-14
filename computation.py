@@ -82,10 +82,10 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     ystart = 0
     yend = 100
     tstart = 0
-    tend = 100
+    tend = 500
     Nx = 101
     Ny = 101
-    Nt = int(1e5)
+    Nt = int(5e5)
     dimless=True
 
 #Define the spatial and temporal grid
@@ -294,5 +294,5 @@ elif setup == "NL_dimless":
     A_new, B_new = solver(NodalLefty_dimless_step)
 
 #save data of last time step
-# np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
-# np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
+np.save(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",A_new)
+np.save(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy",B_new)
