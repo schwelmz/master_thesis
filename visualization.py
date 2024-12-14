@@ -23,8 +23,8 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, co
         if colorbar == True:
             cb0 = fig.colorbar(im0, ax=axs)
         if dimless == True:
-            axs.set_xlabel(r"$x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
-            axs.set_ylabel(r"$y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
+            axs.set_xlabel(r"$x^*$")     #=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
+            axs.set_ylabel(r"$y^*$")     #=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
             if colorbar == True:
                 cb0.set_label(r"$u = \frac{N}{K_N}$")
         else:
@@ -32,20 +32,21 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, co
             axs.set_ylabel(r"domain height [$\mu m$]")
             if colorbar == True:
                 cb0.set_label(r"Nodal [$nM/\mu m$]")
+        return im0
     else:
         #ax0
         im0 = axs[0].imshow(N[:,:],extent=extent,origin="lower",cmap=cm_bo, vmin=0)
-        axs[0].set_title(f"Species A")
+        axs[0].set_title(f"Nodal")
         if colorbar == True:
             cb0 = fig.colorbar(im0, ax=axs[0])
         #ax1
         im1 = axs[1].imshow(L[:,:],extent=extent,origin="lower",cmap=cm_bb, vmin=0)
-        axs[1].set_title(f"Species B")
+        axs[1].set_title(f"Lefty")
         if colorbar == True:
             cb1 = fig.colorbar(im1, ax=axs[1])
 
         if dimless == True:
-            fig.suptitle(fr"$t^* = t\gamma_N = ${time:.2f}")
+            # fig.suptitle(fr"$t^* = t\gamma_N = ${time:.2f}")
             axs[0].set_xlabel(r"domain width $x^*=\frac{x}{\sqrt{D_N/ \gamma_N}}$")
             axs[0].set_ylabel(r"domain height $y^*=\frac{y}{\sqrt{D_N/ \gamma_N}}$")
             if colorbar == True:
@@ -56,7 +57,7 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, co
                 if colorbar == True:
                     cb1.set_label(r"$v = \frac{L}{K_L}$")
         else:
-            fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
+            # fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
             axs[0].set_xlabel(r"domain width [$\mu m$]")
             axs[0].set_ylabel(r"domain height [$\mu m$]")
             if colorbar == True:
