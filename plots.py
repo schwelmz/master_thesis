@@ -80,12 +80,12 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     dimless=True
 
 #phase diagram
-if False:
+if True:
     max_val = 40
     points = [(8,5), (8,7), (8,15.74), (8,25), (4,10), (6.45,10), (13,10), (15,10)]
     labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
     phase_diagram = np.load(f"out/{outdir}/data/phase_diagram.npy")#[0:10,0:10]
-    plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower")
+    plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower",cmap="gnuplot")
     for (x,y), label in zip(points, labels):
         plt.text(y,x,label, color="white", ha="center", va="center", fontsize="12")
     plt.xlabel(r"$\alpha_L$")
@@ -99,7 +99,7 @@ if False:
     plt.show()
 
 #diffusion test
-if True:
+if False:
     plt.rcParams.update({'font.size': 20})
     val_diffs_mat = np.load(f"out/{outdir}/data/diffusion_rates_test.npy")
     dmin = 0
