@@ -350,9 +350,9 @@ if __name__ == '__main__':
         xstart = 0
         xend = 100
         tstart = 0
-        tend = 500     #5000
+        tend = 100     #5000
         Nx = 101
-        Nt = int(5e4)
+        Nt = int(1e4)
         dimless=True
 
     #save 250 images in total spread evenly accross the timesteps
@@ -412,7 +412,7 @@ if __name__ == '__main__':
         ht = (tend-tstart)/(Nt-1)
 
     #run the simulation
-    if False:
+    if True:
         if setup == "NL":
             if time_disc == "EE":
                 A_new, B_new = EE(A_init, B_init, rhs_NL)
@@ -448,12 +448,11 @@ if __name__ == '__main__':
         np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
 
     # plot phase diagram for different values of alpha_N and alpha_L
-    if True:
+    if False:
         N = 41
         max_val = 40
         phase_diagram = np.zeros((N,N))
         vals = np.linspace(0,max_val,N)
-        # vals = [6,10]
         for i in range(N):
             for j in range(N):
                 alpha_N = vals[i]
@@ -483,8 +482,8 @@ if __name__ == '__main__':
                 print(f"val_diff = {val_diff}")
                 phase_diagram[i,j] = val_diff
         plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower")
-        plt.xlabel(r"$\alpha_N$")
-        plt.ylabel(r"$\alpha_L$")
+        plt.xlabel(r"$\alpha_L$")
+        plt.ylabel(r"$\alpha_N$")
         cb = plt.colorbar()
         cb.set_label(r"$\max(N)-\min(N)$")
         plt.show()
