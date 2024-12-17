@@ -82,10 +82,10 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     ystart = 0
     yend = 100
     tstart = 0
-    tend = 500
+    tend = 100
     Nx = 101
     Ny = 101
-    Nt = int(5e5)
+    Nt = int(1e5)
     dimless=True
 
 #Define the spatial and temporal grid

@@ -94,12 +94,16 @@ print(f"hx={hx:.2e}, hy={hy:.2e}, ht={ht:.2e}")
 print(f"Nx={Nx}, Ny={Ny}, Nt={Nt}")
 
 #instances of phase diagram
-if False:
-    positions = ["left", "mid", "mid", "right"]
+if True:
+    # positions = ["left", "mid", "mid", "right"]
+    positions = ["right", "right", "right"]
     p=0
-    for alpha_L in[10]:
-        for alpha_N in [4,6.45,13,15]:
-            outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
+    # for alpha_L in[10]:
+    for alpha_L in[20]:
+        # for alpha_N in [4,6.45,13,15]:
+        for alpha_N in [5,10,20]:
+            # outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
+            outdir = f"NL_reversed_dimless_{alpha_N}_{alpha_L}"
             print(outdir)
             A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
             B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
@@ -107,22 +111,27 @@ if False:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=2.5)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False,vmax=2.5)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
-            fig.savefig(f"out/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
-            fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            # fig.savefig(f"out/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            # fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            fig.savefig(f"../../thesis/figures/phasediagram_instance_reversed_{alpha_N}_{alpha_L}.png")
             p+=1
 
-    positions = ["left", "mid", "mid", "right"]
+    # positions = ["left", "mid", "mid", "right"]
+    positions = ["right", "right", "right"]
     p=0
-    for alpha_L in[5,7,15.74,25]:
-        for alpha_N in [8]:
-            outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
+    # for alpha_L in[5,7,15.74,25]:
+    for alpha_L in[5,10,40]:
+        # for alpha_N in [8]:
+        for alpha_N in [5]:
+            # outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
+            outdir = f"NL_reversed_dimless_{alpha_N}_{alpha_L}"
             print(outdir)
             A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
             B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
@@ -130,19 +139,20 @@ if False:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=2.5)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=2.5)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
-            fig.savefig(f"out/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
-            fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            # fig.savefig(f"out/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            # fig.savefig(f"../../thesis/figures/phasediagram_instance_{alpha_N}_{alpha_L}.png")
+            fig.savefig(f"../../thesis/figures/phasediagram_instance_reversed_{alpha_N}_{alpha_L}.png")
         p+=1
 
 #side by side Nodal and Lefty
-if True:
+if False:
     A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
     B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{hy}_{tend}_{xend}_{yend}.npy")
     fig, axs = plt.subplots(1,2,figsize=(1.2*12,1.2*5))
