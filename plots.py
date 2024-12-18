@@ -101,7 +101,7 @@ if True:
     # for alpha_L in[10]:
     for alpha_L in[20]:
         # for alpha_N in [4,6.45,13,15]:
-        for alpha_N in [1,10,20]:
+        for alpha_N in [1,10,15]:
             # outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
             outdir = f"NL_reversed_dimless_{alpha_N}_{alpha_L}"
             print(outdir)
@@ -111,10 +111,10 @@ if True:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=250)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=140)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=250)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=140)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
