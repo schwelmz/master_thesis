@@ -96,12 +96,12 @@ print(f"Nx={Nx}, Ny={Ny}, Nt={Nt}")
 #instances of phase diagram
 if True:
     # positions = ["left", "mid", "mid", "right"]
-    positions = ["right", "right", "right"]
+    positions = ["left", "mid", "right"]
     p=0
     # for alpha_L in[10]:
     for alpha_L in[20]:
         # for alpha_N in [4,6.45,13,15]:
-        for alpha_N in [5,10,20]:
+        for alpha_N in [1,10,20]:
             # outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
             outdir = f"NL_reversed_dimless_{alpha_N}_{alpha_L}"
             print(outdir)
@@ -111,10 +111,10 @@ if True:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=250)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=250)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
@@ -124,12 +124,12 @@ if True:
             p+=1
 
     # positions = ["left", "mid", "mid", "right"]
-    positions = ["right", "right", "right"]
+    positions = ["left", "mid", "right"]
     p=0
     # for alpha_L in[5,7,15.74,25]:
     for alpha_L in[5,10,40]:
         # for alpha_N in [8]:
-        for alpha_N in [5]:
+        for alpha_N in [4]:
             # outdir = f"NL_parameter2_dimless_{alpha_N}_{alpha_L}"
             outdir = f"NL_reversed_dimless_{alpha_N}_{alpha_L}"
             print(outdir)
@@ -139,10 +139,10 @@ if True:
             position = positions[p]
             if position != "right":
                 fig, ax = plt.subplots(figsize=(5,5))
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=50)
             else:
                 fig, (ax, cax) = plt.subplots(1,2, figsize=(6,5), gridspec_kw={"width_ratios": [10,1]})
-                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False)
+                img = vis.heatmap(fig,ax,A,B,Nt,[xstart,xend,ystart,yend],tstart+ht*Nt, dimless=dimless, singleplot=True,colorbar=False, vmax=50)
                 fig.colorbar(img, cax=cax)
             ax.set_title(fr"$\alpha_N$={alpha_N}, $\alpha_L$={alpha_L}")
             plt.tight_layout()
