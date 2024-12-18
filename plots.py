@@ -81,8 +81,8 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
 
 #phase diagram
 if True:
-    max_val_N = 2
-    max_val_L = 10
+    max_val_N = 40
+    max_val_L = 40
     # points = [(5,8), (7,8), (15.74,8), (25,8), (10,4), (10,6.45), (10,13), (10,15)]
     # labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
     phase_diagram = np.load(f"out/{outdir}/data/phase_diagram.npy")#[0:10,0:10]
@@ -95,9 +95,11 @@ if True:
     plt.grid()
     cb = plt.colorbar()
     cb.set_label(r"$\max(N)-\min(N)$")
-    plt.gca().set_aspect(0.2)
-    plt.savefig(f"out/{outdir}/data/phase_diagram_parameterReversed_zoomin.png")
-    plt.savefig(f"../../thesis/figures/phase_diagram_parameterReversed_zoomin.png")
+    # plt.gca().set_aspect(0.2)
+    plt.savefig(f"out/{outdir}/data/phase_diagram_parameterReversed.png")
+    plt.savefig(f"../../thesis/figures/phase_diagram_parameterReversed.png")
+    # plt.savefig(f"out/{outdir}/data/phase_diagram_parameterReversed_zoomin.png")
+    # plt.savefig(f"../../thesis/figures/phase_diagram_parameterReversed_zoomin.png")
     # plt.savefig(f"out/{outdir}/data/phase_diagram_parameter2.png")
     # plt.savefig(f"../../thesis/figures/phase_diagram_parameter2.png")
     plt.show()
