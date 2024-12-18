@@ -130,78 +130,87 @@ vs = np.linspace(0,200,100000)
 Nlines = 5
 cmap1 = plt.get_cmap('cool')(np.linspace(0,1,Nlines))
 # for alpha_L in np.linspace(5,20,Nlines):
-fig, ax = plt.subplots()
 if True:
+    fig, axs = plt.subplots(1,2,figsize=(15,4))
     # for alpha_N in [8]:
-    for alpha_N in [5]:
+    for alpha_N in [4]:
         alpha_N_ = alpha_N/(gamma_N*K_N)
         v_func_f_roots = [(alpha_N_+np.sqrt(alpha_N_**2-4))/2, (alpha_N_-np.sqrt(alpha_N_**2-4))/2]
         us = np.linspace(np.min(v_func_f_roots)+7e-2,np.max(v_func_f_roots),1000,dtype=np.float64)
         print(f"alpha_N_ = {alpha_N_}, alpha_L = {alpha_N}")
         #inset plot
-        inset_ax = plt.axes([0, 0, 1, 1])  # Create an inset axes
-        inset_ax.set_axes_locator(InsetPosition(ax, [0.65, 0.1, 0.3, 0.3]))
-        mark_inset(ax, inset_ax, loc1=2, loc2=4, fc="none", ec="gray", lw=1)
-        inset_ax.plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
-        inset_ax.set_xlim(-0.1,0.2)  # X range for the zoom
-        # inset_ax.set_xticks(np.arange(18,22,2))
-        inset_ax.set_ylim(-0.1, 0.5)  # Y range for the zoom
-        # inset_ax.set_title("Zoomed In")
-        inset_ax.grid()
-        #plot nullcline
-        ax.plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
-        inset_ax.plot(np.linspace(0,0.2,10000), v_func_f(np.linspace(0,0.2,10000)), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+        # inset_ax = plt.axes([0, 0, 1, 1])  # Create an inset axes
+        # inset_ax.set_axes_locator(InsetPosition(ax, [0.65, 0.1, 0.3, 0.3]))
+        # mark_inset(ax, inset_ax, loc1=2, loc2=4, fc="none", ec="gray", lw=1)
+        # inset_ax.plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+        # inset_ax.set_xlim(-0.1,0.5)  # X range for the zoom
+        # # inset_ax.set_xticks(np.arange(18,22,2))
+        # inset_ax.set_ylim(-0.1, 3)  # Y range for the zoom
+        # # inset_ax.set_title("Zoomed In")
+        # inset_ax.grid()
+        # #plot nullcline
+        axs[0].plot(us, v_func_f(us), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+        axs[1].plot(np.linspace(0,0.5,10000), v_func_f(np.linspace(0,0.5,10000)), color="orange", linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
         k=0
         # for alpha_L in [5,15.74,40]:
-        for alpha_L in [5,10,40]:
+        for alpha_L in [5,10,35.6]:
             alpha_L_ = alpha_L/(gamma_N*K_L)
             print(f"alpha_L_ = {alpha_L_}, alpha_L = {alpha_L}")
             #plot nullclines
-            ax.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
-            inset_ax.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+            axs[0].plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+            axs[1].plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color=cmap1[k], label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
             #compute steady states
             ss = comp_steadyStates(f,g)
             steady_states_u_stable, steady_states_v_stable, steady_states_u_unstable, steady_states_v_unstable = stability_analyis(ss)
-            ax.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
-            inset_ax.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
-            ax.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
-            inset_ax.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
+            axs[0].scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2, marker="x")
+            axs[1].scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2, marker="x")
+            axs[0].scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2, marker="x")
+            axs[1].scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2, marker="x")
             print(f"Number of steady states: {len(steady_states_u_stable) + len(steady_states_u_unstable)}")
             k+=1
     #sve plot
-    ax.set_xlabel('u')
-    ax.set_ylabel('v')
-    ax.set_xlim(-1,300)
-    ax.set_ylim(-1,80)
+    axs[0].set_xlabel('u')
+    axs[0].set_ylabel('v')
+    axs[0].set_xlim(-1,100)
+    axs[0].set_xticks(np.linspace(0,100,5))
+    axs[0].set_ylim(-1,80)
     # plt.xlim(-0.1,2.25)
     # plt.ylim(-0.1,2.25)
-    ax.legend(loc="upper right")
-    ax.grid()
+    axs[0].grid()
+    axs[1].set_xlabel('u')
+    axs[1].set_ylabel('v')
+    axs[1].set_xlim(-0.1,0.5)
+    axs[1].set_ylim(-0.1,3)
+    # plt.xlim(-0.1,2.25)
+    # plt.ylim(-0.1,2.25)
+    # axs[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2)
+    axs[1].grid()
+    axs[1].legend(loc='center left', bbox_to_anchor=(1.05, 0.5), ncol=1)
     plt.tight_layout()
     plt.savefig(f"../../thesis/figures/nullclines_parameterReversed_alphaLrange.png")
 plt.show()
 
-Nlines = 4
+Nlines = 5
 cmap2 = plt.get_cmap('autumn')(np.linspace(0,1,Nlines))
 if True:
     # for alpha_L in [10]:
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(1,2,figsize=(15,4))
     for alpha_L in [20]:
         alpha_L_ = alpha_L/(gamma_N*K_L)
         print(f"alpha_L_ = {alpha_L_}, alpha_L = {alpha_L}")
         #inset plot
-        inset_ax = plt.axes([0, 0, 1, 1])  # Create an inset axes
-        inset_ax.set_axes_locator(InsetPosition(ax, [0.5, 0.1, 0.3, 0.3]))
-        mark_inset(ax, inset_ax, loc1=2, loc2=4, fc="none", ec="gray", lw=1)
-        inset_ax.set_xlim(-0.01,0.1)  # X range for the zoom
-        inset_ax.set_ylim(-0.01, 0.2)  # Y range for the zoom
-        inset_ax.grid()
+        # inset_ax = plt.axes([0, 0, 1, 1])  # Create an inset axes
+        # inset_ax.set_axes_locator(InsetPosition(ax, [0.65, 0.1, 0.3, 0.3]))
+        # mark_inset(ax, inset_ax, loc1=2, loc2=4, fc="none", ec="gray", lw=1)
+        # inset_ax.set_xlim(-0.01,0.3)  # X range for the zoom
+        # inset_ax.set_ylim(-0.01, 1.5)  # Y range for the zoom
+        # inset_ax.grid()
         #plot nullcline
-        ax.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color="blue", label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
-        inset_ax.plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color="blue", label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+        axs[0].plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color="blue", label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
+        axs[1].plot(u_func_g(vs), vs, linestyle="-", linewidth=2, color="blue", label=fr"g(u,v)=0, $\alpha_L$={alpha_L}",zorder=1)
         h=0
         # for alpha_N in [4,6.45,15]:
-        for alpha_N in [5,15,20]:
+        for alpha_N in [1,2.8,10,15]:
             alpha_N_ = alpha_N/(gamma_N*K_N)
             v_func_f_roots = [(alpha_N_+np.sqrt(alpha_N_**2-4))/2, (alpha_N_-np.sqrt(alpha_N_**2-4))/2]
             us = np.linspace(np.min(v_func_f_roots),np.max(v_func_f_roots),1000,dtype=np.float64)
@@ -210,26 +219,34 @@ if True:
             print("#####################################")
             print(v_func_f(us[0]))
             #plot nullcline
-            ax.plot(us, v_func_f(us), color=cmap2[h], linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
-            inset_ax.plot(np.linspace(0,0.2,10000), v_func_f(np.linspace(0,0.2,10000)), color=cmap2[h], linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+            axs[0].plot(us, v_func_f(us), color=cmap2[h], linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
+            axs[1].plot(np.linspace(0,0.5,10000), v_func_f(np.linspace(0,0.5,10000)), color=cmap2[h], linestyle="-", linewidth=2, label=fr"f(u,v)=0, $\alpha_N$={alpha_N}",zorder=1)
             #compute steady states
             ss = comp_steadyStates(f,g)
             steady_states_u_stable, steady_states_v_stable, steady_states_u_unstable, steady_states_v_unstable = stability_analyis(ss)
-            ax.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
-            ax.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
-            inset_ax.scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2)
-            inset_ax.scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2)
+            axs[0].scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2, marker="x")
+            axs[0].scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2, marker="x")
+            axs[1].scatter(steady_states_u_stable, steady_states_v_stable, color="green",zorder=2, marker="x")
+            axs[1].scatter(steady_states_u_unstable, steady_states_v_unstable, color="red",zorder=2, marker="x")
             print(f"Number of steady states: {len(steady_states_u_stable) + len(steady_states_u_unstable)}")
             h+=1
     #sve plot
-    ax.set_xlabel('u')
-    ax.set_ylabel('v')
-    ax.set_xlim(-1,400)
-    ax.set_ylim(-1,140)
+    axs[0].set_xlabel('u')
+    axs[0].set_ylabel('v')
+    axs[0].set_xlim(-1,400)
+    axs[0].set_ylim(-1,140)
     # plt.xlim(-0.1,2.25)
     # plt.ylim(-0.1,2.25)
-    ax.legend(loc="upper right")
-    ax.grid()
+    # axs[0].legend(loc="upper right")
+    axs[0].grid()
+    axs[1].set_xlabel('u')
+    axs[1].set_ylabel('v')
+    axs[1].set_xlim(-0.1,0.5)
+    axs[1].set_ylim(-0.1,2)
+    # plt.xlim(-0.1,2.25)
+    # plt.ylim(-0.1,2.25)
+    axs[1].legend(loc='center left', bbox_to_anchor=(1.05, 0.5), ncol=1)
+    axs[1].grid()
     plt.tight_layout()
     plt.savefig(f"../../thesis/figures/nullclines_parameterReversed_alphaNrange.png")
 plt.show()
