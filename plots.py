@@ -81,21 +81,25 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
 
 #phase diagram
 if True:
-    max_val = 40
-    points = [(8,5), (8,7), (8,15.74), (8,25), (4,10), (6.45,10), (13,10), (15,10)]
-    labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
+    max_val_N = 2
+    max_val_L = 10
+    # points = [(5,8), (7,8), (15.74,8), (25,8), (10,4), (10,6.45), (10,13), (10,15)]
+    # labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
     phase_diagram = np.load(f"out/{outdir}/data/phase_diagram.npy")#[0:10,0:10]
-    plt.imshow(phase_diagram, extent=[0,max_val,0,max_val],origin="lower",cmap="gnuplot")
-    for (x,y), label in zip(points, labels):
-        plt.text(y,x,label, color="white", ha="center", va="center", fontsize="12")
-    plt.xlabel(r"$\alpha_L$")
-    plt.ylabel(r"$\alpha_N$")
+    plt.imshow(phase_diagram.T, extent=[0,max_val_N,0,max_val_L],origin="lower",cmap="gnuplot")
+    # for (x,y), label in zip(points, labels):
+    #     plt.text(y,x,label, color="white", ha="center", va="center", fontsize="12")
+    plt.xlabel(r"$\alpha_N$")
+    plt.ylabel(r"$\alpha_L$")
     # plt.axhline(y=8,color="red")
     plt.grid()
     cb = plt.colorbar()
     cb.set_label(r"$\max(N)-\min(N)$")
-    plt.savefig(f"out/{outdir}/data/phase_diagram_parameter2.png")
-    plt.savefig(f"../../thesis/figures/phase_diagram_parameter2.png")
+    plt.gca().set_aspect(0.2)
+    plt.savefig(f"out/{outdir}/data/phase_diagram_parameterReversed_zoomin.png")
+    plt.savefig(f"../../thesis/figures/phase_diagram_parameterReversed_zoomin.png")
+    # plt.savefig(f"out/{outdir}/data/phase_diagram_parameter2.png")
+    # plt.savefig(f"../../thesis/figures/phase_diagram_parameter2.png")
     plt.show()
 
 #diffusion test
