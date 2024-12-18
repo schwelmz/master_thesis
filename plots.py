@@ -84,11 +84,13 @@ if True:
     max_val_N = 40
     max_val_L = 40
     # points = [(5,8), (7,8), (15.74,8), (25,8), (10,4), (10,6.45), (10,13), (10,15)]
+    points = [(4,5), (4,10), (4,40), (1,20), (10,20), (15,20)]
     # labels = ['(a)', '(b)','(c)','(d)','(e)','(f)','(g)','(h)',]
+    labels = ['(a)', '(b)','(c)','(d)','(e)','(f)']
     phase_diagram = np.load(f"out/{outdir}/data/phase_diagram.npy")#[0:10,0:10]
     plt.imshow(phase_diagram.T, extent=[0,max_val_N,0,max_val_L],origin="lower",cmap="gnuplot")
-    # for (x,y), label in zip(points, labels):
-    #     plt.text(y,x,label, color="white", ha="center", va="center", fontsize="12")
+    for (x,y), label in zip(points, labels):
+        plt.text(x,y,label, color="white", ha="center", va="top", fontsize="16")
     plt.xlabel(r"$\alpha_N$")
     plt.ylabel(r"$\alpha_L$")
     # plt.axhline(y=8,color="red")
