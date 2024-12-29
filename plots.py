@@ -74,10 +74,28 @@ elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
     xstart = 0
     xend = 100
     tstart = 0
-    tend = 1000     #5000
+    tend = 500     #5000
     Nx = 101
-    Nt = int(1e4)
+    Nt = int(5e4)
     dimless=True
+
+#Define the spatial and temporal grid
+hx = (xend-xstart)/(Nx-1)
+ht = (tend-tstart)/(Nt-1)
+xs = np.linspace(xstart,xend,Nx)
+
+#line plot
+A = np.load(f"out/{outdir}/data/A_{ht}_{hx}_{tend}_{xend}.npy")
+B = np.load(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy")
+fig, ax = plt.subplots(figsize=(10,4))
+ax.plot(xs,A,label="Nodal",color="purple")
+ax.plot(xs,B,label="Lefty",color="green")
+ax.set_xlabel(r"$x^*=\frac{x}{\sqrt{D_N/\gamma_N}}$")
+ax.set_ylabel(r"$y^*=\frac{y}{\sqrt{D_N/\gamma_N}}$")
+ax.legend()
+plt.tight_layout()
+plt.savefig(f"../../thesis/figures/lineplot_{outdir}.png")
+plt.show()
 
 #phase diagram
 if True:
