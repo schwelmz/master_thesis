@@ -21,12 +21,13 @@ def read_parameters():
 def read_cmdline_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--outdir", help="name of output directory", default="simulation_results")
-    parser.add_argument("-init", "--initialization", help="specify initial condition",choices=['spike','white-noise'])
+    parser.add_argument("-init", "--initialization", help="specify initial condition",choices=['spike','white-noise'], default="white-noise")
     parser.add_argument("-vid","--videomode", help="more plots in between", action="store_true")
     parser.add_argument("-p", "--parameter", help="parameter file")
     parser.add_argument("-i", "--input", nargs=3, help="path to starting solution")
-    parser.add_argument("-m", "--model", help="specify model", default="NL", choices=["NL","NL_dimless","NL_modified","GM"])
-    parser.add_argument("-tdisc", "--timedisc", help="specify time discretization method", default="EE", choices=["EE","strang_EE_IE", "strang_H_IE"])
+    parser.add_argument("-m", "--model", help="specify model", default="NL", choices=["NL","NL_modified","GM","NL_dimless"])
+    parser.add_argument("-tdisc", "--timedisc", help="specify time discretization method", default="EE", choices=["EE", "H", "strang_EE_IE", "strang_H_CN"])
+    parser.add_argument("-dimless", "--dimensionless", help="Simulate dimensionless equations?", action="store_true")
     args = parser.parse_args()
     return args
 
