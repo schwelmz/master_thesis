@@ -43,7 +43,7 @@ python computation.py -p parameter/parameter_NL_2.ini -o my_simulation -init whi
 
 ![Simulation Result:](figures/example_2d.png)
 
-To run a 2D simulation of the dimensional Nodal-Lefty model with white noise initialization, Strang-Heun-Crank-Nicolson for time discretization, and output to the directory `my_simulation`, using the parameter file `parameter_NL_2.ini`, you would use the following command:
+To run a 1D simulation of the dimensional Nodal-Lefty model with white noise initialization, Strang-Heun-Crank-Nicolson for time discretization, and output to the directory `my_simulation`, using the parameter file `parameter_NL_2.ini`, you would use the following command:
 
 ```bash
 python3 computation.py -p parameter/parameter_NL_2.ini -o my_simulation -init white-noise -m NL -tdisc strang_H_CN -d 1 --dimensionless --videomode
