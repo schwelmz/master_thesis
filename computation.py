@@ -1,539 +1,595 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import settings
-import time
-import visualization as vis
-import os
-import shutil
+from matplotlib.cm import get_cmap
+import scipy as sp
 import scipy.sparse as sparse
 from functools import lru_cache
+import time
+import os
+import shutil
+import settings
 
-########################################################################################
-# auxiliary methods
-########################################################################################
-'''
-Create system matrix for implicit euler solution of the diffusion equation
-'''
-@lru_cache(maxsize=8)
-def make_system_matrix(N, kappa, bounds=None):
-    diags = [-kappa*np.ones(N-1),(1+2*kappa)*np.ones(N), -kappa*np.ones(N-1)]
-    mat = sparse.diags(diags,[-1,0,1],format="lil")
-    if bounds == "neumann":
-        # mat[0,1] = mat[0,0]
-        # mat[-1,-2] = mat[-1,-1]
-        mat[0, 0] = 1 + kappa     # Neumann boundary condition at left boundary
-        mat[0, 1] = -kappa
-        mat[-1, -1] = 1 + kappa   # Neumann boundary condition at right boundary
-        mat[-1, -2] = -kappa
-    return sparse.csr_matrix(mat)
+class ModelParameters:
+    """Container for model parameters to avoid global variables"""
+    def __init__(self, model, params_dict, is_dimensionless):
+        if model == "NL":
+            self._init_NL(params_dict)
+            if is_dimensionless:
+                self._compute_NL_dimensionless()
+        elif model == "GM":
+            print("ja")
+            self._init_GM(params_dict)
+            
+    def _init_NL(self, params):
+        # Nodal-Lefty parameters
+        self.alpha_N = float(params.get('alpha_N', 0))
+        self.alpha_L = float(params.get('alpha_L', 0))
+        self.n_N = float(params.get('n_N', 0))
+        self.n_L = float(params.get('n_L', 0))
+        self.K_N = float(params.get('K_N', 0))
+        self.K_L = float(params.get('K_L', 0))
+        self.gamma_N = float(params.get('gamma_N', 0))
+        self.gamma_L = float(params.get('gamma_L', 0))
+        self.D_N = float(params.get('D_N', 0))
+        self.D_L = float(params.get('D_L', 0))
 
-'''
-Create matrix containing the initial values
-Input: desired number of rows, desired number of columns
-options for initialization: "4dots" (1 dot in each quarter of the matrix), 
-                            "random-dots" (randomly distributed dots in <percentage> of the total values)
-                            "white-noise" (random values sampled from a uniform distribution over [0,1) )
-Output: matrix containing initial values
-'''
-def initialize_matrix(rows, option="white-noise"):
-    init_val = 1
-    percentage = 0.001
-    # if option == "4dots":
-    #     array = np.zeros((rows,cols))
-    #     d_x = cols//4
-    #     d_y = rows//4
-    #     array[d_x,d_y] = init_val
-    #     array[3*d_x,3*d_y] = init_val
-    #     array[d_x,3*d_y] = init_val
-    #     array[3*d_x,d_y] = init_val
-    #     return array
-    # elif option == "random-dots":
-    #     # Step 1: Create a 2D array filled with zeros
-    #     array = np.zeros((rows, cols), dtype=int)
-    #     # Step 2: Calculate the number of ones needed
-    #     total_elements = rows * cols
-    #     num_ones = int(total_elements * percentage)
-    #     # Step 3: Randomly select positions to place the ones
-    #     ones_positions = np.random.choice(total_elements, num_ones, replace=False)
-    #     # Step 4: Convert 1D positions to 2D indices and place the ones
-    #     for pos in ones_positions:
-    #         row_index = pos // cols
-    #         col_index = pos % cols
-    #         array[row_index, col_index] = init_val
-    #     return array
-    if option == "white-noise":
-        # Generate a 2D array with white noise using a normal distribution
-        # low = 0.0
-        # high = 0.01
-        # return np.random.uniform(low, high, (rows, cols))
-        return np.random.rand(rows)
 
-########################################################################################
-# reactions
-########################################################################################
-'''
-return the values of the hill equation as it is in the PDE for different concentrations of Nodal and Lefty
-'''
-def hill_equation(N,L):
-    nenner = pow(N,n_N) + pow(K_N * (1 + pow(L/K_L,n_L)), n_N)
-    zahler = pow(N,n_N)
-    return zahler/nenner
-
-'''
-calculate the reaction part for Nodal and Lefty respectively
-'''
-def reaction_NL(N,L):
-    hill_term = hill_equation(N,L)
-    reaction_N = alpha_N*hill_term - gamma_N*N
-    reaction_L = alpha_L*hill_term - gamma_L*L
-    return reaction_N, reaction_L
-
-'''
-calculate the right hand side for Nodal and Lefty respectively (reaction + diffusion)
-'''
-def rhs_NL(N,L):
-    Lap_N = central_differences(N)
-    Lap_L = central_differences(L)
-    reaction_N, reaction_L = reaction_NL(N[1:-1],L[1:-1])
-    rhs_N = reaction_N + D_N*Lap_N
-    rhs_L = reaction_L + D_L*Lap_L
-    return rhs_N, rhs_L
-
-'''
-calculate the reaction part for the dimensionless equations for Nodal and Lefty respectively
-'''
-def reaction_NL_dimless(N,L):
-    hill_term = pow(N,n_N)/(pow(N,n_N) + pow((1+pow(L,n_L)),n_N))
-    reaction_N = alpha_N_ * hill_term - N
-    reaction_L = alpha_L_ * hill_term - gamma_*L
-    return reaction_N, reaction_L
-
-'''
-calculate the right hand side for the dimensionless equations for Nodal and Lefty respectively (reaction + diffusion)
-'''
-def rhs_NL_dimless(N, L):
-    Lap_N = central_differences(N)
-    Lap_L = central_differences(L)
-    #calculate Nodal and Lefty at the new time step using the explicit euler method
-    reaction_N, reaction_L = reaction_NL_dimless(N[1:-1],L[1:-1])
-    rhs_N = reaction_N + Lap_N
-    rhs_L = reaction_L + d*Lap_L
-    return rhs_N, rhs_L
-
-'''
-calculate the reaction parts for the Gierer Meinhardt model
-'''
-def reaction_GM(U,V):
-    f = r*((U**2)/((1+mu*U**2)*V) - c*U)
-    g = r*(U**2 - a*V)
-    return f, g
-
-'''
-calculate the right hand sides for the Gierer Meinhardt model (reaction + diffusion)
-'''
-def rhs_GM(U,V):
-    rhs_U = np.zeros(Nx)
-    rhs_V = np.zeros(Nx)
-    Lap_U = central_differences(U)
-    Lap_V = central_differences(V)
-    reaction_U, reaction_V = reaction_GM(U[1:-1],V[1:-1])
-    rhs_U[1:-1] = reaction_U + D_u*Lap_U
-    rhs_V[1:-1] = reaction_V + D_v*Lap_V
-    return rhs_U, rhs_V
-
-########################################################################################
-# time stepping methods
-########################################################################################
-'''
-Approximate the Laplace operator using 2nd order central differences
-Input: full (Nx x Ny) matrix U (with boundary entries)
-Output: approximation of the Laplace operator in each inner entry of the matrix ((Nx-2)x(Ny-2))
-'''
-def central_differences(U):
-    # return (U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])/(hx**2)
-    return (U[0:-2] - 2*U[1:-1] + U[2:])/(hx**2)
-
-'''
-calculate one iteration of the explicit euler scheme
-'''
-def explicit_euler(u_old, v_old, rhs, ht):
-    rhs_u, rhs_v = rhs(u_old, v_old)
-    u_new = u_old + ht*rhs_u
-    v_new = v_old + ht*rhs_v
-    return u_new, v_new
-
-'''
-calculate one iteration of the implicit euler scheme
-'''
-def implicit_euler(u, v, system_matrices):
-    sysmat_N, sysmat_L = system_matrices
-    assert isinstance(sysmat_N, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
-    assert isinstance(sysmat_L, (sparse.csr_matrix, sparse.csc_matrix)), "system matrix in wrong format!"
-    u_new = sparse.linalg.spsolve(sysmat_N, u)
-    v_new = sparse.linalg.spsolve(sysmat_L, v)
-    return u_new, v_new
-
-'''
-calculate one iteration of the heun scheme
-'''
-def heun(u_old, v_old, rhs, ht):
-    rhs_u_old, rhs_v_old = rhs(u_old, v_old)
-    u_inter = u_old + ht*rhs_u_old
-    v_inter = v_old + ht*rhs_v_old
-    rhs_u_inter, rhs_v_inter = rhs(u_inter, v_inter)
-    u_new = u_old + ht/2*(rhs_u_old+rhs_u_inter)
-    v_new = v_old + ht/2*(rhs_v_old+rhs_v_inter)
-    return u_new, v_new
-
-'''
-calculate the next iteration for both species A and B and set boundaries
-'''
-def EE_step(A, B, rhs):
-    A_new = np.zeros(Nx)
-    B_new = np.zeros(Nx)
-    # f_A, f_B = rhs(A,B)
-    # A_new, B_new = explicit_euler(A, B, rhs, ht)
-    rhs_A, rhs_B = rhs(A,B)
-    A_new[1:-1] = A[1:-1] + ht*rhs_A
-    B_new[1:-1] = B[1:-1] + ht*rhs_B
-    # set Neumann boundary values
-    A_new[0] = A_new[1]     #left
-    B_new[0] = B_new[1]
-    A_new[-1] = A_new[-2]   #right
-    B_new[-1] = B_new[-2]
-    return A_new, B_new
-
-'''
-loop over all time steps for a given integrator and right hand side
-'''
-def stepper(integrator, A0, B0, rhs):
-    #main loop
-    tik = time.time()
-    A_new = np.zeros(Nx)
-    B_new = np.zeros(Nx)
-    A_old = A0
-    B_old = B0
-    for n in range(0,Nt-1):
-        print(f"\rtime step {n+1}/{Nt}",end=" ",flush=True)
-        #update timestep
-        # A_new, B_new = model_step(A_old, B_old)
-        # A_new, B_new = strang_splitting(A_old, B_old, explicit_euler_step, implicit_euler_step, reaction_NL(A_new,B_new))
-        A_new, B_new = integrator(A_old, B_old, rhs)
-        #save plots
-        if videomode:
-            if n%frameskips == 0 or n in[1,2,3,4,5,10,40,80,150]:
-                #save fig
-                fig, axs = plt.subplots(1,1,figsize=(12,5))
-                # img = vis.heatmap(fig,axs,A_new,B_new,n,[xstart,xend,ystart,yend],tstart+ht*n, dimless=dimless)
-                axs.plot(xs,A_new,color="red",label="Nodal")
-                axs.plot(xs,B_new,color="blue",label="Lefty")
-                axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
-                axs.legend()
-                fig.savefig(f"out/{outdir}/plots/lineplot_{n}")
-                plt.close()
-                #save data
-                np.save(f"out/{outdir}/data/A_{ht}_{hx}_{tend}_{xend}.npy",A_new)
-                np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}_.npy",B_new)
-
-        #set new state as old
-        A_old = A_new
-        B_old = B_new
         
-    #print computation time
-    tok = time.time()
-    print(f"\ndone! time taken: {(tok-tik)/60:.1f}min {(tok-tik):.1f}s")
+    def _compute_NL_dimensionless(self):
+        # Compute dimensionless parameters
+        self.alpha_N_dimless = self.alpha_N / (self.gamma_N * self.K_N)
+        self.alpha_L_dimless = self.alpha_L / (self.gamma_N * self.K_L)
+        self.gamma_dimless = self.gamma_L / self.gamma_N
+        self.d = self.D_L / self.D_N
     
-    return A_new, B_new
+    def _init_GM(self, params):
+        # Gierer-Meinhardt parameters
+        self.D_u = float(params.get('D_u', 0))
+        self.D_v = float(params.get('D_v', 0))
+        self.mu = float(params.get('mu', 0))
+        self.a = float(params.get('a', 0))
+        self.c = float(params.get('c', 0))
+        self.r = float(params.get('r', 0))
+    
+    def print(self):
+        print('Model parameters:')
+        print('\n'.join("\t%s: %s" % (key,value) for key,value in vars(self).items()))
 
-'''
-loop over all time steps for the Explicit Euler and Central Differences discretization
-'''
-def EE(u0,v0, rhs):
-    return stepper(EE_step, u0, v0, rhs)
+class GridParameters:
+    """Container for spatial and temporal grid parameters"""
+    def __init__(self, is_dimensionless, model_params, grid_params_dict):
+        if is_dimensionless:
+            self._init_dimensionless(grid_params_dict)
+        else:
+            self._init_dimensional(model_params, grid_params_dict)
+    
+    def _init_dimensionless(self, grid_params_dict):
+        self.x_start = grid_params_dict["x_start"]
+        self.x_end = grid_params_dict["x_end"]
+        self.t_start = grid_params_dict["t_start"]
+        self.t_end = grid_params_dict["t_end"]
+        self.dx = grid_params_dict["dx"]
+        self.dt = grid_params_dict["dt"]
+        self.nx = int((self.x_end - self.x_start) / self.dx)
+        self.nt = int((self.t_end - self.t_start) / self.dt)
+        self.x = np.linspace(self.x_start, self.x_end, self.nx)
+    
+    def _init_dimensional(self, model_params, grid_params_dict):
+        self.x_start = grid_params_dict["x_start"]
+        self.x_end = grid_params_dict["x_end"] * np.sqrt(model_params.D_N/model_params.gamma_N)
+        self.t_start = grid_params_dict["t_start"]
+        self.t_end = grid_params_dict["t_end"] / model_params.gamma_N
+        self.dx = grid_params_dict["dx"]
+        self.dt = grid_params_dict["dt"]
+        self.nx = int((self.x_end - self.x_start) / self.dx)
+        self.nt = int((self.t_end - self.t_start) / self.dt)
+        self.x = np.linspace(self.x_start, self.x_end, self.nx)
 
-'''
-define a strang step for 2 given integrators
-'''
-def make_strang_step(int0,int1,system_matrices):
-    def strang_step(u, v, rhs):
-        # solve the first equation for the first half time interval
-        u, v = int0(u, v, rhs, ht/2)
-        # solve the second equation for one time interval
-        u, v = int1(u, v, system_matrices)
-        # solve the first equation for the second half time interval
-        u, v = int0(u, v, rhs, ht/2)
-        return u,v
-    return strang_step
+    def print(self):
+        print('Grid parameters:')
+        print('\n'.join("\t%s: %s" % (key,value) for key,value in vars(self).items() if key != "x"))
 
-'''
-loop over all time steps for the strang splitting method using Explicit Euler and Implicit Euler methods
-'''
-def strang_EE_IE(u0,v0, rhs):
-    return stepper(make_strang_step(explicit_euler, implicit_euler, system_matrices), u0, v0, rhs)
+class ReactionDiffusionModel:
+    """Base class for reaction-diffusion models"""
+    def __init__(self, params, grid):
+        self.params = params
+        self.grid = grid
+        self._setup_system_matrices()
+        
+    @property
+    def labels(self):
+        """Return dictionary of labels for plotting"""
+        return {
+            'x_label': 'x',
+            'y_label': 'Concentration',
+            'title': 'Reaction-Diffusion System',
+            'u_label': 'Species U',
+            'v_label': 'Species V'
+        }
 
-'''
-loop over all time steps for the strang splitting method using Heun's and Implicit Euler methods
-'''
-def strang_H_IE(u0,v0,rhs):
-    return stepper(make_strang_step(heun, implicit_euler, system_matrices), u0, v0, rhs)
+    @lru_cache(maxsize=8)
+    def _create_system_matrix(self, N, kappa, bounds="neumann"):
+        """Create system matrix for implicit euler solution"""
+        diags = [kappa * np.ones(N-1), (-2*kappa) * np.ones(N), kappa * np.ones(N-1)]
+        mat = sparse.diags(diags, [-1, 0, 1], format="lil")
+        
+        # if bounds == "neumann":
+        #     # Left boundary: u[-1] = u[1] -> -u[-1] + 2u[0] - u[1] = 0
+        #     mat[0,0] = -kappa  # Diagonal term
+        #     mat[0,1] = kappa   # Off-diagonal term
+            
+        #     # Right boundary: u[N+1] = u[N-1] -> -u[N-1] + 2u[N] - u[N+1] = 0
+        #     mat[-1,-1] = -kappa  # Diagonal term
+        #     mat[-1,-2] = kappa   # Off-diagonal term
+            
+        return sparse.csr_matrix(mat)
+    
+    def _apply_bc_sysmat(self, sysmat):
+        sysmat[0][0,0] = -sysmat[0][0,1]
+        sysmat[0][-1,-1] = -sysmat[0][-1,-2]
+        sysmat[1][0,0] = -sysmat[1][0,1]
+        sysmat[1][-1,-1] = -sysmat[1][-1,-2]
+        return sysmat
 
-########################################################################################
-# main
-########################################################################################
-if __name__ == '__main__':
-    # read parameters
-    parameters = settings.read_parameters()
-    settings.print_settings(parameters)
+    def _setup_system_matrices(self):
+        """To be implemented by child classes"""
+        raise NotImplementedError
+        
+    def reaction_terms(self, u, v):
+        """To be implemented by child classes"""
+        raise NotImplementedError
+        
+    def rhs(self, u, v):
+        """Calculate right-hand side including both reaction and diffusion terms"""
+        raise NotImplementedError
+
+class NodalLeftyModel(ReactionDiffusionModel):
+    """Implementation of the dimensional Nodal-Lefty model"""
+    @property
+    def labels(self):
+        """Return dictionary of labels for plotting"""
+        return {
+            'x_label': r'Position ($\mu m$)',
+            'y_label': r'Concentration ($nM$)',
+            'title': 'Nodal-Lefty System',
+            'u_label': 'Nodal',
+            'v_label': 'Lefty'
+        }
+
+    def _setup_system_matrices(self):
+        kappa_N = self.params.D_N * self.grid.dt / (self.grid.dx ** 2)
+        kappa_L = self.params.D_L * self.grid.dt / (self.grid.dx ** 2)
+        I = sparse.identity(self.grid.nx, format="csr")
+        self.system_matrices_ie = [
+            I - self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I - self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        self.system_matrices_cn_implicit = [
+            I - 0.5 * self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I - 0.5 * self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        self.system_matrices_cn_explicit = [
+            I + 0.5 * self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I + 0.5 * self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        
+
+    def hill_equation(self, N, L):
+        """Calculate Hill equation term"""
+        numerator = np.power(N, self.params.n_N)
+        denominator = (np.power(N, self.params.n_N) + 
+                      np.power(self.params.K_N * 
+                              (1 + np.power(L/self.params.K_L, self.params.n_L)),
+                              self.params.n_N))
+        return numerator / denominator
+        
+    def reaction_terms(self, N, L):
+        """Calculate reaction terms for Nodal and Lefty"""
+        hill_term = self.hill_equation(N, L)
+        r_N = self.params.alpha_N * hill_term - self.params.gamma_N * N
+        r_L = self.params.alpha_L * hill_term - self.params.gamma_L * L
+        return r_N, r_L
+        
+    def rhs(self, N, L):
+        """Calculate complete right-hand side including diffusion"""
+        diff_N = self._laplacian(N)
+        diff_L = self._laplacian(L)
+        r_N, r_L = self.reaction_terms(N[1:-1], L[1:-1])
+        
+        rhs_N = np.zeros_like(N)
+        rhs_L = np.zeros_like(L)
+        rhs_N[1:-1] = r_N + self.params.D_N * diff_N
+        rhs_L[1:-1] = r_L + self.params.D_L * diff_L
+        return rhs_N, rhs_L
+    
+    def _laplacian(self, U):
+        """Calculate Laplacian using central differences"""
+        return (U[0:-2] - 2*U[1:-1] + U[2:]) / (self.grid.dx ** 2)
+
+class DimensionlessNodalLeftyModel(ReactionDiffusionModel):
+    """Implementation of the dimensionless Nodal-Lefty model"""
+    @property
+    def labels(self):
+        """Return dictionary of labels for plotting"""
+        return {
+            'x_label': r'Dimensionless Position $x^*$',
+            'y_label': 'Dimensionless Concentration',
+            'title': 'Dimensionless Nodal-Lefty System',
+            'u_label': 'Nodal',
+            'v_label': 'Lefty'
+        }
+
+
+    def _setup_system_matrices(self):
+        kappa_N = self.grid.dt / (self.grid.dx ** 2)
+        kappa_L = self.params.d * self.grid.dt / (self.grid.dx ** 2)
+        I = sparse.identity(self.grid.nx, format="csr")
+        self.system_matrices_ie = [
+            I - self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I - self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        self.system_matrices_ie = self._apply_bc_sysmat(self.system_matrices_ie)
+
+        self.system_matrices_cn_implicit = [
+            I - 0.5 * self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I - 0.5 * self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        self.system_matrices_cn_implicit = self._apply_bc_sysmat(self.system_matrices_cn_implicit)
+        self.system_matrices_cn_explicit = [
+            I + 0.5 * self._create_system_matrix(self.grid.nx, kappa_N, "neumann"),
+            I + 0.5 * self._create_system_matrix(self.grid.nx, kappa_L, "neumann")
+        ]
+        self.system_matrices_cn_explicit = self._apply_bc_sysmat(self.system_matrices_cn_explicit)
+
+        
+    def hill_equation(self, N, L):
+        """Calculate dimensionless Hill equation term"""
+        numerator = np.power(N, self.params.n_N)
+        denominator = np.power(N, self.params.n_N) + np.power(1 + np.power(L, self.params.n_L), self.params.n_N)
+        return numerator / denominator
+        
+    def reaction_terms(self, N, L):
+        """Calculate dimensionless reaction terms"""
+        hill_term = self.hill_equation(N,L)
+        r_N = self.params.alpha_N_dimless * hill_term - N
+        r_L = self.params.alpha_L_dimless * hill_term - self.params.gamma_dimless * L
+        return r_N, r_L
+        
+    def rhs(self, N, L):
+        """Calculate complete dimensionless right-hand side"""
+        diff_N = self._laplacian(N)
+        diff_L = self._laplacian(L)
+        r_N, r_L = self.reaction_terms(N[1:-1], L[1:-1])
+        
+        rhs_N = np.zeros_like(N)
+        rhs_L = np.zeros_like(L)
+        rhs_N[1:-1] = r_N + diff_N
+        rhs_L[1:-1] = r_L + self.params.d * diff_L
+        return rhs_N, rhs_L
+
+    def _laplacian(self, U):
+        """Calculate Laplacian using central differences"""
+        return (U[0:-2] - 2*U[1:-1] + U[2:]) / (self.grid.dx ** 2)
+
+class GiererMeinhardtModel(ReactionDiffusionModel):
+    """Implementation of the Gierer-Meinhardt model"""
+    @property
+    def labels(self):
+        """Return dictionary of labels for plotting"""
+        return {
+            'x_label': 'Position x',
+            'y_label': 'Concentration',
+            'title': 'Gierer-Meinhardt System',
+            'u_label': 'Species A',
+            'v_label': 'Species B'
+        }
+
+    def _setup_system_matrices(self):
+        kappa_u = self.params.D_u * self.grid.dt / (self.grid.dx ** 2)
+        kappa_v = self.params.D_v * self.grid.dt / (self.grid.dx ** 2)
+        I = sparse.identity(self.grid.nx, format="csr")
+        self.system_matrices_ie = [
+            I - self._create_system_matrix(self.grid.nx, kappa_u, "neumann"),
+            I- self._create_system_matrix(self.grid.nx, kappa_v, "neumann")
+        ]
+        self.system_matrices_cn_implicit = [
+            I - self._create_system_matrix(self.grid.nx, kappa_u, "neumann"),
+            I- self._create_system_matrix(self.grid.nx, kappa_v, "neumann")
+        ]
+        self.system_matrices_cn_explicit = [
+            I + self._create_system_matrix(self.grid.nx, kappa_u, "neumann"),
+            I + self._create_system_matrix(self.grid.nx, kappa_v, "neumann")
+        ]
+        
+    def reaction_terms(self, U, V):
+        """Calculate reaction terms for both species"""
+        r_U = self.params.r*((U**2)/((1+self.params.mu*U**2)*V) - self.params.c*U)
+        r_V = self.params.r*(U**2 - self.params.a*V)
+        return r_U, r_V
+        
+    def rhs(self, U, V):
+        """Calculate complete right-hand side including diffusion"""
+        diff_U = self._laplacian(U)
+        diff_V = self._laplacian(V)
+        r_U, r_V = self.reaction_terms(U[1:-1], V[1:-1])
+        
+        rhs_U = np.zeros_like(U)
+        rhs_V = np.zeros_like(V)
+        rhs_U[1:-1] = r_U + self.params.D_u * diff_U
+        rhs_V[1:-1] = r_V + self.params.D_v * diff_V
+        return rhs_U, rhs_V
+    
+    def _laplacian(self, U):
+        """Calculate Laplacian using central differences"""
+        return (U[0:-2] - 2*U[1:-1] + U[2:]) / (self.grid.dx ** 2)
+
+class TimeStepper:
+    """Handles time stepping for reaction-diffusion models"""
+    def __init__(self, model, visualization_callback=None):
+        self.model = model
+        self.visualization_callback = visualization_callback
+    
+    def apply_boundary_conditions(self, u, v):
+        """Apply zero-flux (Neumann) boundary conditions by setting ghost points equal to their neighbors"""
+        # Left boundary: u[-1] = u[1] -> u[0] = u[1]
+        u[0] = u[1]
+        v[0] = v[1]
+        
+        # Right boundary: u[N+1] = u[N-1] -> u[N] = u[N-1]
+        u[-1] = u[-2]
+        v[-1] = v[-2]
+        
+        return u, v
+    
+    def explicit_euler_step(self, u, v, dt, rhs, boundary_cond=False):
+        """Perform one explicit Euler step"""
+        #apply boundary conditions
+        if boundary_cond == True:
+            u, v = self.apply_boundary_conditions(u, v)
+
+        rhs_u, rhs_v = rhs(u, v)
+        
+        # Update interior points
+        u_new = u + dt * rhs_u
+        v_new = v + dt * rhs_v
+
+        return u_new, v_new
+    
+    def heun_step(self, u, v, dt, rhs, boundary_cond=False):
+        """Perform one heun step"""
+        #apply boundary conditions
+        if boundary_cond == True:
+            u, v = self.apply_boundary_conditions(u, v)
+
+        # intermediate step
+        rhs_u, rhs_v = rhs(u,v)
+        u_inter = u + dt * rhs_u
+        v_inter = v + dt * rhs_v
+
+        #apply boundary conditions
+        if boundary_cond == True:
+            u_inter, v_inter = self.apply_boundary_conditions(u_inter, v_inter)
+
+        #update step
+        rhs_u_inter, rhs_v_inter = rhs(u_inter,v_inter)
+        u_new= u+ dt/2 * (rhs_u + rhs_u_inter)
+        v_new = v + dt/2 * (rhs_v + rhs_v_inter)
+
+        return u_new, v_new
+        
+    def implicit_euler_step(self, u, v):
+        """Perform one implicit Euler step"""
+        sysmat_u, sysmat_v = self.model.system_matrices_ie
+        rhs_u = np.zeros_like(u)
+        rhs_v = np.zeros_like(v)
+        rhs_u[1:-1] = u[1:-1]
+        rhs_v[1:-1] = v[1:-1]
+        u_new = sparse.linalg.spsolve(sysmat_u, rhs_u)
+        v_new = sparse.linalg.spsolve(sysmat_v, rhs_v)
+        return u_new, v_new
+
+    def crank_nicolson_step(self, u ,v):
+        """Perform one Crank-Nicolson step"""
+        sysmat_u_imp, sysmat_v_imp = self.model.system_matrices_cn_implicit
+        sysmat_u_exp, sysmat_v_exp = self.model.system_matrices_cn_explicit
+        rhs_u = sysmat_u_exp.dot(u)
+        rhs_u[0] = 0
+        rhs_u[-1] = 0
+        rhs_v = sysmat_v_exp.dot(v)
+        rhs_v[0] = 0
+        rhs_v[-1] = 0
+        u_new = sparse.linalg.spsolve(sysmat_u_imp, rhs_u)
+        v_new = sparse.linalg.spsolve(sysmat_v_imp, rhs_v)
+        return u_new, v_new
+        
+    def strang_EE_IE_step(self, u, v):
+        """Perform one Strang splitting step"""
+        # First half step with explicit Euler (reaction only)
+        u_half, v_half = self.explicit_euler_step(u, v, self.model.grid.dt/2, self.model.reaction_terms)
+        
+        # Full step with implicit Euler (diffusion only)
+        u_implicit, v_implicit = self.implicit_euler_step(u_half, v_half)
+        
+        # Second half step with explicit Euler (reaction only)
+        u_new, v_new = self.explicit_euler_step(u_implicit, v_implicit, self.model.grid.dt/2, self.model.reaction_terms)
+        return u_new, v_new
+
+    def strang_H_CN_step(self, u, v):
+        """Perform one Strang splitting step"""
+        # First half step with explicit Euler
+        u_half, v_half = self.heun_step(u, v, self.model.grid.dt/2, self.model.reaction_terms)
+        
+        # Full step with implicit Euler
+        u_implicit, v_implicit = self.crank_nicolson_step(u_half, v_half)
+        
+        # Second half step with explicit Euler
+        u_new, v_new = self.heun_step(u_implicit, v_implicit, self.model.grid.dt/2, self.model.reaction_terms)
+        
+        return u_new, v_new
+        
+    def solve(self, u0, v0, videomode, method):
+        """Solve the PDE system using the specified method"""
+        u = u0.copy()
+        v = v0.copy()
+        
+        # Choose the time-stepping method
+        step_method = {
+            "EE": lambda u, v: self.explicit_euler_step(u, v, self.model.grid.dt, self.model.rhs, boundary_cond=True),
+            "IE": self.implicit_euler_step,
+            "H": lambda u, v: self.heun_step(u, v, self.model.grid.dt, self.model.rhs, boundary_cond=True),
+            "strang_EE_IE": self.strang_EE_IE_step,
+            "strang_H_CN": self.strang_H_CN_step
+        }[method]
+        
+        start_time = time.time()
+        
+        check_interval = 100
+        tolerance = 1e-12
+        for n in range(self.model.grid.nt):
+            
+            #compute next iteration
+            u_old = u.copy()
+            v_old = v.copy()
+            u, v = step_method(u, v)
+
+            # Check for steady state every check_interval iterations
+            if n % check_interval == 0:
+                change = np.max(np.abs(u - u_old))
+                if change < tolerance:
+                    print(f"\nReached steady state after {n} iterations")
+                    self.visualization_callback(u, v, n, override=True)
+                    break
+            print(f"\rTime step {n+1}/{self.model.grid.nt}       change = {change:.2e}", end=" ", flush=True)
+
+            # visualization
+            if videomode:
+                self.visualization_callback(u, v, n)
+            # handle max. iterations reached
+            if n==self.model.grid.nt-1:
+                print(f"\nSteady state not reached within {n} iterations")
+                self.visualization_callback(u, v, n, override=True)
+                
+        print(f"Computation completed in {time.time() - start_time:.2f} seconds")
+        
+        return u, v
+
+def initialize_solution(nx, method):
+    """Initialize the solution arrays"""
+    if method == "white-noise":
+        return np.random.rand(nx), np.random.rand(nx)
+    elif method == "spike":
+        u0 = np.zeros(nx)
+        v0 = np.zeros(nx)
+        u0[nx//2] = 1
+        v0[nx//2] = 1
+        return u0, v0
+    else:
+        raise ValueError(f"Initialization method {method} not implemented")
+
+def setup_output_directory(dirname):
+    """Set up output directory structure"""
+    if not os.path.exists(f"out/{dirname}"):
+        os.makedirs(f"out/{dirname}/plots")
+        os.makedirs(f"out/{dirname}/data")
+    else:
+        shutil.rmtree(f"out/{dirname}")
+        print(f"Old output directory '{dirname}' deleted")
+        os.makedirs(f"out/{dirname}/plots")
+        os.makedirs(f"out/{dirname}/data")
+
+def create_visualization_callback(model, output_dir, plot_frequency=250):
+    """Create a callback function for visualization during solving"""
+    def callback(u, v, step, override=False):
+        if step % plot_frequency == 0 or override:
+            fig, ax = plt.subplots(figsize=(12, 5))
+            ax.plot(model.grid.x, u, color="purple", label=model.labels["u_label"])
+            ax.plot(model.grid.x, v, color="green", label=model.labels["v_label"])
+            ax.set_ylim(0, max(np.max(u), np.max(v)))
+            ax.set_xlabel(model.labels['x_label'])
+            ax.set_ylabel(model.labels['y_label'])
+            ax.set_title(f"{model.labels['title']} at t={step*model.grid.dt:.2f}")
+            ax.legend()
+            fig.savefig(f"out/{output_dir}/plots/solution_{step}")
+            plt.close()
+            
+            # Save data
+            np.save(f"out/{output_dir}/data/u_{step}.npy", u)
+            np.save(f"out/{output_dir}/data/v_{step}.npy", v)
+    
+    return callback
+
+def compute_solution(dt, outdir, initialization, videomode, model, timedisc, dimensionless):
+    #setup output directory
+    setup_output_directory(outdir)
+
+    # Read model parameters and setup grid parameters
+    params = ModelParameters(model, settings.read_parameters(), dimensionless)
+    params.print()
+    grid = GridParameters(
+        dimensionless,
+        params,
+        {"x_start":0,
+        "x_end":100,
+        "t_start":0,
+        "t_end":10,
+        "dx":1,
+        "dt":dt}
+    )
+    grid.print()
+    
+    # Select model
+    if model == "NL":
+        if dimensionless:
+            model = DimensionlessNodalLeftyModel(params,grid)
+        else:
+            model = NodalLeftyModel(params, grid)
+    elif model == "GM":
+        model = GiererMeinhardtModel(params, grid)
+    
+    # Create visualization callback
+    vis_callback = create_visualization_callback(
+        model,
+        outdir,
+        plot_frequency=grid.nt//10
+    )
+    
+    # Initialize solver
+    solver = TimeStepper(model, visualization_callback=vis_callback)
+    
+    # Set initial conditions
     np.random.seed(0)
+    u0, v0 = initialize_solution(grid.nx, method=initialization)
+    
+    # Solve system
+    u_final, v_final = solver.solve(u0, v0, videomode, timedisc)
+    
+    return u_final, v_final
 
+def convergence_test(args):
+    fig, axs = plt.subplots(2,1)
+    u_final_ref, v_final_ref = compute_solution(1e-5, args.outdir, args.initialization, args.videomode, args.model, "strang_EE_IE", args.dimensionless)
+    axs[0].plot(np.linspace(0,100,u_final_ref.shape[0]), u_final_ref, color="black", linestyle="--")
+
+    cmap1 = ["blue", "orange", "green", "brown"]
+    linestyles = ["-", "--", "-", "--"]
+    i = 0
+    num_lines = 2
+    for timedisc in ["EE","H","strang_EE_IE","strang_H_CN"]:
+        errors = []
+        for dt in [1e-2, 1e-3, 1e-4]:
+            print(f"\n {i}")
+            u_final, v_final = compute_solution(dt, args.outdir, args.initialization, args.videomode, args.model, timedisc, args.dimensionless)
+            axs[0].plot(np.linspace(0,100,u_final.shape[0]), u_final, color=cmap1[i])
+            errors.append(sp.linalg.norm(u_final - u_final_ref))
+        axs[1].plot(np.arange(num_lines+1), errors, label=timedisc, color=cmap1[i])
+        i += 1
+    axs[1].set_yscale("log")
+    axs[1].legend()
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
     #read command line arguments
     args = settings.read_cmdline_args()
-    videomode = args.videomode
-    outdir = args.outdir
-    setup = args.model
-    time_disc = args.timedisc
-
-    #specify setup
-    dimless = False
-    if setup == "NL":   #Nodal-Lefty
-        alpha_N = float(parameters['alpha_N'])
-        alpha_L = float(parameters['alpha_L'])
-        # k_p = float(parameters['k_p'])
-        n_N = float(parameters['n_N'])
-        n_L = float(parameters['n_L'])
-        K_N = float(parameters['K_N'])
-        K_L = float(parameters['K_L'])
-        gamma_N = float(parameters['gamma_N'])
-        gamma_L = float(parameters['gamma_L'])
-        D_N = float(parameters['D_N'])
-        D_L = float(parameters['D_L'])
-        xstart = 0
-        xend = 100*np.sqrt(D_N/gamma_N)
-        tstart = 0
-        tend = 100/gamma_N
-        Nx = 101
-        Nt = int(1e4)
-    elif setup == "GM":     #Gierer-Meinhardt
-        D_u = float(parameters["D_u"])
-        D_v = float(parameters["D_v"])
-        mu = float(parameters["mu"])
-        a = float(parameters["a"])
-        c = float(parameters["c"])
-        r = float(parameters["r"])
-        xstart = 0
-        xend = 100
-        tstart = 0
-        tend = 100
-        Nx = 200
-        Nt = int(1e4)
-    elif setup == "NL_dimless":     #dimensionaless Nodal-Lefty
-        alpha_N = float(parameters['alpha_N'])
-        alpha_L = float(parameters['alpha_L'])
-        # k_p = float(parameters['k_p'])
-        n_N = float(parameters['n_N'])
-        n_L = float(parameters['n_L'])
-        K_N = float(parameters['K_N'])
-        K_L = float(parameters['K_L'])
-        gamma_N = float(parameters['gamma_N'])
-        gamma_L = float(parameters['gamma_L'])
-        D_N = float(parameters['D_N'])
-        D_L = float(parameters['D_L'])
-        #dimensionless parameters:
-        alpha_N_ = alpha_N/(gamma_N*K_N)
-        alpha_L_ = alpha_L/(gamma_N*K_L)
-        gamma_ = gamma_L/gamma_N
-        d = D_L/D_N
-        print("alpha_N_ = ",alpha_N_)
-        print("alpha_L_ = ",alpha_L_)
-        print("gamma_ = ", gamma_)
-        print("d = ",d)
-        xstart = 0
-        xend = 100
-        tstart = 0
-        tend = 500     #5000
-        Nx = 101
-        Nt = int(5e4)
-        dimless=True
-
-    #save 250 images in total spread evenly accross the timesteps
-    frames = 250
-    frameskips = Nt//frames
-
-    #create output directory
-    if not os.path.exists(f"out/{outdir}"):
-        os.makedirs(f"out/{outdir}/plots")
-        os.makedirs(f"out/{outdir}/data")
-    else: 
-        shutil.rmtree(f"out/{outdir}")
-        print(f"old output directory '{outdir}' deleted")
-        os.makedirs(f"out/{outdir}/plots")
-        os.makedirs(f"out/{outdir}/data")
-
-    #Define the spatial and temporal grid
-    hx = (xend-xstart)/(Nx-1)
-    ht = (tend-tstart)/(Nt-1)
-    xs = np.linspace(xstart,xend,Nx)
-    print(f"hx={hx:.2e}, ht={ht:.2e}")
-    print(f"Nx={Nx}, Nt={Nt}")
-
-    #create the system matrices
-    if setup == "NL":
-        kappa_N = D_N*ht/(hx**2)
-        kappa_L = D_L*ht/(hx**2)
-        sysmat_N = make_system_matrix(Nx, kappa_N, bounds="neumann")
-        sysmat_L = make_system_matrix(Nx, kappa_L, bounds="neumann")
-        system_matrices = [sysmat_N, sysmat_L]
-    elif setup == "NL_dimless":
-        kappa_N_dimless = ht/(hx**2)
-        kappa_L_dimless = d*ht/(hx**2)
-        sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
-        sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
-        system_matrices = [sysmat_N, sysmat_L]
-    elif setup == "GM":
-        kappa_u = D_u*ht/(hx**2)
-        kappa_v = D_v*ht/(hx**2)
-        sysmat_u = make_system_matrix(Nx, kappa_u, bounds="neumann")
-        sysmat_v = make_system_matrix(Nx, kappa_v, bounds="neumann")
-        system_matrices = [sysmat_u, sysmat_v]
-
-    #option to continue simulation on old data, otherwise set initial conditino as "4dots", "random-dots" or "white-noise"
-    if args.input is None:
-        if args.initialization is not None: 
-            init = args.initialization
-        else:
-            init = "white-noise"
-        init_mat = initialize_matrix(Nx, init)     #specify initial condition here
-        A_init = init_mat 
-        B_init = init_mat
-    else:
-        A_init = np.load(args.input[0])
-        B_init = np.load(args.input[1])
-        tstart = int(args.input[2]) 
-        ht = (tend-tstart)/(Nt-1)
-
-    #run the simulation
-    if False:
-        if setup == "NL":
-            if time_disc == "EE":
-                A_new, B_new = EE(A_init, B_init, rhs_NL)
-            elif time_disc == "strang_EE_IE":
-                A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
-            elif time_disc == "strang_H_IE":
-                A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL)
-        elif setup == "GM":
-            if time_disc == "EE_CD":
-                A_new, B_new = EE_CD(A_init, B_init, rhs_GM)
-            elif time_disc == "strang_EE_IE":
-                A_new, B_new = strang_EE_IE(A_init, B_init, reaction_GM)
-            elif time_disc == "strang_H_IE":
-                A_new, B_new = strang_H_IE(A_init, B_init, reaction_GM)
-        elif setup == "NL_dimless":
-            if time_disc == "EE":
-                A_new, B_new = EE(A_init, B_init, rhs_NL_dimless)
-            elif time_disc == "strang_EE_IE":
-                A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
-            elif time_disc == "strang_H_IE":
-                A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
-        else:
-            print("Combination of model and discretization method not supported!")
-
-        #save data of last time step
-        fig, axs = plt.subplots(1,1,figsize=(12,5))
-        axs.plot(xs,A_new,color="red",label="species A")
-        axs.plot(xs,B_new,color="blue",label="species B")
-        axs.set_ylim(0,np.maximum(np.max(A_new),np.max(B_new)))
-        axs.legend()
-        fig.savefig(f"out/{outdir}/plots/lineplot_end")
-        np.save(f"out/{outdir}/data/A_{ht}_{hx}_{tend}_{xend}.npy",A_new)
-        np.save(f"out/{outdir}/data/B_{ht}_{hx}_{tend}_{xend}.npy",B_new)
-
-    # plot phase diagram for different values of alpha_N and alpha_L
-    if True:
-        N = 21
-        max_val_N = 2
-        max_val_L = 10
-        phase_diagram = np.zeros((N,N))
-        vals_N = np.linspace(0,max_val_N,N)
-        vals_L = np.linspace(0,max_val_L,N)
-        for i in range(N):
-            for j in range(N):
-                alpha_N = vals_N[i]
-                alpha_L = vals_L[j]
-                print(alpha_N,alpha_L)
-                if setup == "NL_dimless":
-                    alpha_N_ = alpha_N/(gamma_N*K_N)
-                    alpha_L_ = alpha_L/(gamma_N*K_L)
-                    # print(f"alpha_N_ = {alpha_N_}, alpha_L_ = {alpha_L_}")
-                if setup == "NL":
-                    if time_disc == "EE":
-                        A_new, B_new = EE(A_init, B_init, rhs_NL)
-                    elif time_disc == "strang_EE_IE":
-                        A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL)
-                    elif time_disc == "strang_H_IE":
-                        A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL)
-                    # A_new, B_new = solver(NodalLefty_splitting_step)
-                elif setup == "NL_dimless":
-                    if time_disc == "EE":
-                        A_new, B_new = EE(A_init, B_init, rhs_NL_dimless)
-                    elif time_disc == "strang_EE_IE":
-                        A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
-                    elif time_disc == "strang_H_IE":
-                        A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
-                    # A_new, B_new = solver(NodalLefty_dimless_splitting_step)
-                val_diff = np.max(A_new) - np.min(A_new)
-                print(f"val_diff = {val_diff}")
-                phase_diagram[i,j] = val_diff
-        plt.imshow(phase_diagram, extent=[0,max_val_L,0,max_val_N],origin="lower")
-        plt.gca().set_aspect(5)
-        plt.xlabel(r"$\alpha_L$")
-        plt.ylabel(r"$\alpha_N$")
-        cb = plt.colorbar()
-        cb.set_label(r"$\max(N)-\min(N)$")
-        plt.show()
-        #save data
-        np.save(f"out/{outdir}/data/phase_diagram.npy",phase_diagram)
-        plt.savefig(f"out/{outdir}/data/phase_diagram.png")
-
-    # check pattern formation for different diffusion rates
-    if False:
-        d_min = 0
-        d_max = 100
-        N_samples = 101
-        d_vals = np.linspace(d_min, d_max, N_samples)
-        val_diffs_mat = np.zeros((4,N_samples))
-        cmap = plt.cm.jet(np.arange(1,10))
-        k=0
-        for ht in [1e-2]:
-            print(f"tend = {tend}")
-            # ht = (tend-tstart)/(Nt-1)
-            # ht=1e-2
-            tend=500
-            Nt = int(tend//ht)
-            val_diffs = []
-            for d in d_vals:
-                print(f"d = {d}")
-                # build system matrices
-                kappa_N_dimless = ht/(hx**2)
-                kappa_L_dimless = d*ht/(hx**2)
-                sysmat_N = make_system_matrix(Nx, kappa_N_dimless, bounds="neumann")
-                sysmat_L = make_system_matrix(Nx, kappa_L_dimless, bounds="neumann")
-                system_matrices = [sysmat_N, sysmat_L]
-                #select solver
-                if time_disc == "EE_CD":
-                    A_new, B_new = EE_CD(A_init, B_init, rhs_NL_dimless)
-                elif time_disc == "strang_EE_IE":
-                    A_new, B_new = strang_EE_IE(A_init, B_init, reaction_NL_dimless)
-                elif time_disc == "strang_H_IE":
-                    A_new, B_new = strang_H_IE(A_init, B_init, reaction_NL_dimless)
-                #check pattern formation
-                val_diff = np.max(A_new) - np.min(A_new)
-                print(f"val_diff = {val_diff}")
-                val_diffs.append(val_diff)
-            #plot result
-            val_diffs_mat[k,:] = val_diffs
-            # plt.plot(d_vals,val_diffs, color=cmap[k])
-            # plt.xlabel(r"$d=\frac{D_L}{D_N}$")
-            # plt.ylabel(r"$N_\text{max}-N_\text{min}$")
-            k+=1
-        np.save(f"out/{outdir}/data/diffusion_rates_test.npy",val_diffs_mat)
-        # plt.show()
+    compute_solution(1e-3, args.outdir, args.initialization, args.videomode, args.model, args.timedisc, args.dimensionless)
+    # convergence_test(args)
