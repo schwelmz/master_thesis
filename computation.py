@@ -7,21 +7,21 @@ from visualization.visualization import create_visualization_callback_2d
 import discretization.TimeStepper as TimeStepper
 import discretization.GridParameters as GridParameters
 
-def initialize_solution(shape, method):
+def initialize_solution(shape, method, spatial_dims):
     """Initialize the solution arrays"""
     if method == "white-noise":
-        if len(shape) == 1:
+        if spatial_dims == 1:
             return np.random.rand(shape), np.random.rand(shape)
-        if len(shape) == 2:
+        if spatial_dims == 2:
             return np.random.rand(shape[0],shape[1]), np.random.rand(shape[0],shape[1])
     elif method == "spike":
         u0 = np.zeros(shape)
         v0 = np.zeros(shape)
-        if len(shape) == 1:
+        if spatial_dims == 1:
             nx = shape
             u0[nx//2] = 1
             v0[nx//2] = 1
-        if len(shape) == 2:
+        if spatial_dims == 2:
             nx, ny = shape
             u0[nx//2,ny//2] = 1
             v0[nx//2,ny//2] = 1
@@ -80,7 +80,10 @@ def compute_solution(dt, outdir, initialization, videomode, model, timedisc, dim
     
     # Set initial conditions
     np.random.seed(0)
-    u0, v0 = initialize_solution((grid.nx, grid.ny), method=initialization)
+    if spatial_dims == 1:
+        u0, v0 = initialize_solution(grid.nx, initialization, spatial_dims)
+    if spatial_dims == 2:
+        u0, v0 = initialize_solution((grid.nx, grid.ny), initialization, spatial_dims)
     
     # Solve system
     u_final, v_final = solver.solve(u0, v0, videomode, timedisc)
