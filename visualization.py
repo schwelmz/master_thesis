@@ -59,7 +59,7 @@ def heatmap(fig,axs,N,L,timestep,extent,time,dimless=False, singleplot=False, co
                 if colorbar == True:
                     cb1.set_label(r"$v = \frac{L}{K_L}$")
         else:
-            # fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
+        # fig.suptitle(f"t = {time//60:.0f}hrs {time%60:.2f}min")
             axs[0].set_xlabel(r"domain width [$\mu m$]")
             axs[0].set_ylabel(r"domain height [$\mu m$]")
             if colorbar == True:
