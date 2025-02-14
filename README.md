@@ -1,6 +1,5 @@
 # Masters Thesis: Exploring Turing Patterns through the Simulation of Engineered Nodal and Lefty Gene Circuits
-
-All code developed throughout throughout my master's thesis is publicly available on in this repository. 
+Code repository for the code developed throughout my master's thesis, which can be accessed [here](https://github.com/schwelmz/master_thesis/raw/main/thesis.pdf).
 The main part is a flexible simulation framework, designed not only for simulating a Nodal-Lefty model but also with the potential for application to other reaction-diffusion systems, for instance the Gierer-Meinhardt model is also implemented.
 
 ## Code Structure
